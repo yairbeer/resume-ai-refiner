@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 type RefineRequest = {
   cvText?: string;
@@ -9,11 +11,18 @@ type RefineRequest = {
 type RefinePayload = {
   refinedCv: string;
   changeSummary: string[];
+  cacheFilePath?: string;
+  cacheRelativePath?: string;
+  cacheVersion?: number;
+  cacheLatestPath?: string;
 };
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 20000;
+const CACHE_DIR = ".cache/refinements";
+const VERSION_DIR = "versions";
+const LATEST_FILE = "latest.json";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as RefineRequest;
@@ -114,7 +123,12 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(parsed satisfies RefinePayload);
+  const cacheInfo = await saveRefinedCv(parsed.refinedCv, format);
+
+  return NextResponse.json({
+    ...parsed,
+    ...cacheInfo,
+  } satisfies RefinePayload);
 }
 
 function buildPrompt(cvText: string, instructions: string, format: "markdown" | "text") {
@@ -282,4 +296,68 @@ function logUnexpectedClaudeResponse(data: unknown) {
     outputLength: outputText.length,
     outputPreview: outputText.slice(0, 2000),
   });
+}
+
+async function saveRefinedCv(
+  refinedCv: string,
+  format: "markdown" | "text",
+) {
+  const extension = format === "markdown" ? "md" : "txt";
+  const cacheDir = resolve(process.cwd(), CACHE_DIR);
+  const versionDir = join(cacheDir, VERSION_DIR);
+  const version = await getNextCacheVersion(versionDir);
+  const cacheFileName = `refined-cv-v${String(version).padStart(4, "0")}.${extension}`;
+  const cacheRelativePath = `${CACHE_DIR}/${VERSION_DIR}/${cacheFileName}`;
+  const cacheFilePath = join(versionDir, cacheFileName);
+  const latestPath = join(cacheDir, LATEST_FILE);
+  const latestRelativePath = `${CACHE_DIR}/${LATEST_FILE}`;
+
+  await mkdir(versionDir, { recursive: true });
+  await writeFile(cacheFilePath, refinedCv, "utf8");
+  await writeFile(
+    latestPath,
+    JSON.stringify(
+      {
+        version,
+        format,
+        path: cacheRelativePath,
+        absolutePath: cacheFilePath,
+        createdAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  console.info("[refine] Saved refined CV", {
+    cacheVersion: version,
+    cacheRelativePath,
+    cacheFilePath,
+    cacheLatestPath: latestRelativePath,
+  });
+
+  return {
+    cacheVersion: version,
+    cacheFilePath,
+    cacheRelativePath,
+    cacheLatestPath: latestRelativePath,
+  };
+}
+
+async function getNextCacheVersion(versionDir: string) {
+  await mkdir(versionDir, { recursive: true });
+
+  const files = await readdir(versionDir);
+  const latestVersion = files.reduce((latest, fileName) => {
+    const match = /^refined-cv-v(\d+)\.(?:md|txt)$/.exec(fileName);
+
+    if (!match) {
+      return latest;
+    }
+
+    return Math.max(latest, Number(match[1]));
+  }, 0);
+
+  return latestVersion + 1;
 }

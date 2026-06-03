@@ -7,6 +7,10 @@ type CvFormat = "markdown" | "text";
 type RefineResult = {
   refinedCv: string;
   changeSummary: string[];
+  cacheFilePath?: string;
+  cacheRelativePath?: string;
+  cacheVersion?: number;
+  cacheLatestPath?: string;
 };
 
 const markdownExtensions = new Set(["md", "markdown"]);
@@ -69,7 +73,7 @@ export default function Home() {
       const response = await fetch("/api/refine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvText, instructions, format }),
+        body: JSON.stringify({ cvText, instructions, format, fileName }),
       });
 
       const data = await response.json();
@@ -79,7 +83,7 @@ export default function Home() {
       }
 
       setResult(data as RefineResult);
-      setStatus("Refined CV is ready.");
+      setStatus("Refined CV is ready and saved as a new cache version.");
       setStatusKind("success");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Refinement failed.");
@@ -123,8 +127,8 @@ export default function Home() {
           <p>Upload or paste a stale CV, describe the update, get the same format back.</p>
         </div>
         <p className="privacy-note">
-          V1 does not save CVs in this app. Your text is only sent for the refine
-          request and then shown here for copy or download.
+          V1 sends your CV for the refine request and saves only the refined
+          output under the local ignored cache for the next pipeline step.
         </p>
       </header>
 
@@ -229,6 +233,13 @@ export default function Home() {
                     <li key={change}>{change}</li>
                   ))}
                 </ol>
+              )}
+              {result.cacheFilePath && (
+                <p className="field-hint">
+                  Saved version {result.cacheVersion} to{" "}
+                  <span className="mono">{result.cacheFilePath}</span>. Pipeline
+                  pointer: <span className="mono">{result.cacheLatestPath}</span>
+                </p>
               )}
               <textarea
                 className="textarea output-textarea mono"

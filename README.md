@@ -23,4 +23,6 @@ API route logs appear in the terminal running `npm run dev`. If the app returns 
 - Refine the full CV without inventing facts.
 - Preserve Markdown or plain text format.
 - Show a short change summary.
+- Save each refined output as a version under `.cache/refinements/versions/`.
+- Update `.cache/refinements/latest.json` so downstream pipeline steps can always read the newest version.
 - Copy or download the refined CV.
