@@ -84,8 +84,91 @@ button {
   display: grid;
   gap: 18px;
   grid-template-columns: minmax(340px, 0.86fr) minmax(440px, 1.14fr);
+  margin: 0;
+  max-width: none;
+}
+
+.pipeline-layout {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 220px minmax(0, 1fr);
   margin: 0 auto;
   max-width: 1420px;
+}
+
+.side-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  position: sticky;
+  top: 18px;
+}
+
+.side-panel-header {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+  padding: 4px 4px 10px;
+}
+
+.side-panel-header h2 {
+  font-size: 14px;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.pipeline-tab {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  font-weight: 800;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.pipeline-tab:hover {
+  background: var(--surface-muted);
+}
+
+.pipeline-tab span {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 12px;
+  height: 26px;
+  justify-content: center;
+  width: 34px;
+}
+
+.pipeline-tab-active {
+  background: var(--primary-soft);
+  border-color: #c8dde8;
+  color: var(--primary-strong);
+}
+
+.pipeline-tab-active span {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.main-panel {
+  min-width: 0;
 }
 
 .panel {
@@ -175,6 +258,24 @@ button {
   min-height: 520px;
 }
 
+.parts-textarea {
+  margin-top: 12px;
+  min-height: 300px;
+}
+
+.components-panel {
+  min-height: 720px;
+}
+
+.components-textarea {
+  margin-top: 12px;
+  min-height: 520px;
+}
+
+.components-empty {
+  margin-top: 14px;
+}
+
 .actions {
   align-items: center;
   display: flex;
@@ -262,6 +363,20 @@ button {
   margin-top: 12px;
 }
 
+.pipeline-section {
+  border-top: 1px solid var(--line);
+  margin-top: 18px;
+  padding-top: 18px;
+}
+
+.pipeline-header {
+  margin-bottom: 12px;
+}
+
+.pipeline-result {
+  margin-top: 14px;
+}
+
 .mono {
   font-family:
     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -283,6 +398,14 @@ button {
 
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .pipeline-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    position: static;
   }
 }
 
