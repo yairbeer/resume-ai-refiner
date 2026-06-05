@@ -109,8 +109,7 @@ export async function POST() {
     body: JSON.stringify({
       model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
       max_tokens: getMaxTokens(),
-      system:
-        "You split CVs into structured components. Preserve source text exactly where requested. Do not invent missing sections or facts.",
+      system: buildSystemPrompt(),
       tools: [
         {
           name: "return_cv_parts",
@@ -179,6 +178,16 @@ function buildPrompt(cvText: string, sourceRefinement: RefinementLatest) {
     "",
     "Refined CV:",
     cvText,
+  ].join("\n");
+}
+
+function buildSystemPrompt() {
+  return [
+    "You split CVs into structured components.",
+    "Preserve source text exactly where requested.",
+    "Do not invent missing sections or facts.",
+    "Use this compact fake example as the target shape, not as source facts:",
+    JSON.stringify(CV_PARTS_SAMPLE, null, 2),
   ].join("\n");
 }
 
@@ -495,3 +504,67 @@ const CV_PARTS_TOOL_SCHEMA = {
     },
   },
 } as const;
+
+const CV_PARTS_SAMPLE = {
+  cvParts: {
+    contact: {
+      name: "Alex Morgan",
+      email: "alex@example.com",
+      links: [{ label: "LinkedIn", url: "https://www.linkedin.com/in/alex-morgan" }],
+      rawText:
+        "**Name: Alex Morgan**\nE-mail: alex@example.com\nLinkedIn: https://www.linkedin.com/in/alex-morgan",
+    },
+    profile: {
+      rawText:
+        "AI engineering leader turning research prototypes into production systems.",
+    },
+    technicalSkills: {
+      groups: [
+        {
+          label: "Programming",
+          items: ["Python", "TypeScript", "SQL"],
+          rawText: "* **Programming**: Python, TypeScript, SQL",
+        },
+      ],
+      rawText: "* **Programming**: Python, TypeScript, SQL",
+    },
+    professionalExperience: [
+      {
+        organization: "Example Data",
+        role: "Head of AI",
+        dates: "2023 - Present",
+        items: ["Led an applied AI team building production ML services."],
+        rawText:
+          "**Example Data: Head of AI 2023 - Present**\n* Led an applied AI team building production ML services.",
+      },
+    ],
+    patents: [
+      {
+        title: "Systems and Methods for Example Model Compression",
+        dates: "2024",
+        rawText:
+          "* **Systems and Methods for Example Model Compression** - US Patent US0000000, published 2024.",
+      },
+    ],
+    publications: [
+      {
+        title: "Example Conference 2022",
+        rawText:
+          "* **Example Conference 2022** - Practical ML Systems in Production.",
+      },
+    ],
+    education: [
+      {
+        organization: "Example University",
+        title: "M.Sc, Computer Science",
+        dates: "2015 - 2017",
+        rawText: "**Example University, 2015-2017**\nM.Sc, Computer Science",
+      },
+    ],
+    customSections: [],
+  },
+  sectionSummary: [
+    "Extracted contact, profile, skills, experience, patents, publications, and education.",
+    "No projects or certifications were present, so they were omitted.",
+  ],
+};

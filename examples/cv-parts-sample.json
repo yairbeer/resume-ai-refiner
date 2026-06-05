@@ -1,0 +1,72 @@
+{
+  "cvParts": {
+    "contact": {
+      "name": "Alex Morgan",
+      "phone": "+1 555 0100",
+      "email": "alex@example.com",
+      "links": [
+        {
+          "label": "LinkedIn",
+          "url": "https://www.linkedin.com/in/alex-morgan"
+        }
+      ],
+      "rawText": "**Name: Alex Morgan**\nMobile: +1 555 0100 | E-mail: alex@example.com\nLinkedIn: https://www.linkedin.com/in/alex-morgan"
+    },
+    "profile": {
+      "rawText": "AI engineering leader with experience building applied machine learning products, mentoring teams, and turning research prototypes into production systems."
+    },
+    "technicalSkills": {
+      "groups": [
+        {
+          "label": "Programming",
+          "items": ["Python", "TypeScript", "SQL"],
+          "rawText": "* **Programming**: Python, TypeScript, SQL"
+        },
+        {
+          "label": "Machine Learning",
+          "items": ["PyTorch", "scikit-learn", "LLMs"],
+          "rawText": "* **Machine Learning**: PyTorch, scikit-learn, LLMs"
+        }
+      ],
+      "rawText": "* **Programming**: Python, TypeScript, SQL\n* **Machine Learning**: PyTorch, scikit-learn, LLMs"
+    },
+    "professionalExperience": [
+      {
+        "organization": "Example Data",
+        "role": "Head of AI",
+        "dates": "2023 - Present",
+        "items": [
+          "Led a small applied AI team building production ML services.",
+          "Improved model deployment reliability through stronger evaluation and monitoring."
+        ],
+        "rawText": "**Example Data: Head of AI 2023 - Present**\n* Led a small applied AI team building production ML services.\n* Improved model deployment reliability through stronger evaluation and monitoring."
+      }
+    ],
+    "patents": [
+      {
+        "title": "Systems and Methods for Example Model Compression",
+        "dates": "2024",
+        "rawText": "* **Systems and Methods for Example Model Compression** - US Patent US0000000, published 2024."
+      }
+    ],
+    "publications": [
+      {
+        "title": "Example Conference 2022",
+        "rawText": "* **Example Conference 2022** - Practical ML Systems in Production."
+      }
+    ],
+    "education": [
+      {
+        "organization": "Example University",
+        "title": "M.Sc, Computer Science",
+        "dates": "2015 - 2017",
+        "rawText": "**Example University, 2015-2017**\nM.Sc, Computer Science"
+      }
+    ],
+    "customSections": []
+  },
+  "sectionSummary": [
+    "Extracted contact, profile, skills, experience, patents, publications, and education.",
+    "No projects or certifications were present, so they were omitted."
+  ]
+}

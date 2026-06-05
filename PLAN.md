@@ -10,10 +10,11 @@ The product should stay practical and pipeline-oriented before becoming a polish
 
 ## Current State
 
-The pipeline shell now has two selectable steps in a left side panel:
+The pipeline shell now has three selectable steps in a left side panel:
 
 1. Refine CV.
 2. CV to components.
+3. Template designer.
 
 The first MVP refinement step is working:
 
@@ -37,12 +38,16 @@ Implemented files:
 - Main UI: `app/page.tsx`.
 - API route: `app/api/refine/route.ts`.
 - API route: `app/api/cv-parts/route.ts`.
+- API route: `app/api/template-design/route.ts`.
+- CV parts sample fixture: `examples/cv-parts-sample.json`.
 - Provider: Anthropic Messages API.
 - Default model: `claude-sonnet-4-6`.
 - Cache pointer: `.cache/refinements/latest.json`.
 - Versioned outputs: `.cache/refinements/versions/`.
 - CV parts cache pointer: `.cache/cv-parts/latest.json`.
 - CV parts versioned outputs: `.cache/cv-parts/versions/`.
+- Template design cache pointer: `.cache/templates/latest.json`.
+- Template design versioned outputs: `.cache/templates/versions/`.
 
 Verified:
 
@@ -54,6 +59,12 @@ Verified:
 - Selecting `CV to components` swaps the main panel to that step.
 - A completed real Claude run for `/api/cv-parts` works.
 - `.cache/cv-parts/latest.json` is created from the live UI.
+- `Template designer` appears as step 3 in the side panel.
+- The `Generate template` action calls a template-design endpoint and saves a design spec under `.cache/templates/`.
+- The `Load existing` action loads the latest saved template design from `.cache/templates/latest.json`.
+- The template preview panel renders generated HTML/CSS above the template metadata.
+- The standalone `/template-preview` route renders the latest saved template in a normal browser tab.
+- Existing saved templates without `htmlPreview` render through a class-based fallback preview.
 
 ## Cache Contract
 
@@ -115,6 +126,19 @@ Expected latest pointer shape:
   },
   "createdAt": "2026-06-05T00:00:00.000Z"
 }
+```
+
+The template-design step saves each template design spec as a versioned JSON file:
+
+```txt
+.cache/templates/versions/template-design-v0001.json
+.cache/templates/versions/template-design-v0002.json
+```
+
+The latest template pointer is:
+
+```txt
+.cache/templates/latest.json
 ```
 
 Expected versioned CV parts object shape:
@@ -219,12 +243,13 @@ Implementation notes:
 - The route only allows reading versioned refined CV filenames matching `refined-cv-v0001.md` / `.txt` style names.
 - The route forces Claude to call `return_cv_parts`.
 - The first schema includes `contact`, `profile`, `technicalSkills`, `professionalExperience`, `additionalExperience`, `patents`, `publications`, `education`, and `customSections`.
+- The system prompt includes a compact fake CV-parts example so the model has an output target without using real CV facts as examples.
 
-### 3. Create Unique HTML Template
+### 3. Create Unique React Resume Template
 
-Status: planned.
+Status: partially implemented.
 
-Create an HTML/CSS resume template that can render the structured CV.
+Create a React-based HTML resume template that can render the structured CV.
 
 Goals:
 
@@ -232,21 +257,51 @@ Goals:
 - Keep layout professional and readable.
 - Support print/PDF export.
 - Keep design separate from CV content.
+- Avoid sending the full real CV JSON to the template-design LLM when schema and sample data are enough.
+- Use short fake sample data for layout decisions, then render the real CV parts locally.
 
 Likely artifacts:
 
 ```txt
-templates/resume-template.html
-templates/resume.css
+examples/cv-parts-sample.json
+components/resume-template/
+components/resume-template/ResumeTemplate.tsx
+components/resume-template/resume-template.css
 ```
 
-or React/Next rendering components if that fits better later.
+The template designer should be one user-facing pipeline step:
+
+- Left: chat/instructions panel.
+- Right: live preview rendered from local data.
+- LLM input: system prompt, current user instructions, schema, short fake sample data, and current template files if they exist.
+- Current LLM output: template design spec, renderable HTML preview, and scoped CSS.
+- Local renderer input: real `.cache/cv-parts/latest.json`.
 
 Important:
 
 - The template should not lock the content to one exact CV length.
 - It should handle section omission gracefully.
 - It should be printable with browser print-to-PDF as a manual first export path.
+- The LLM should not need the full real CV data for pure template design unless a later feature explicitly requires content-aware fitting.
+
+Implemented:
+
+- UI entry lives in the pipeline side panel as `03 Template designer`.
+- Main panel has instructions on the left and design preview/spec output on the right.
+- Main panel supports loading the latest existing template design.
+- The preview panel renders the HTML preview in a sandboxed iframe above the metadata.
+- The latest rendered template preview can be opened directly at `/template-preview`.
+- The in-app preview and standalone `/template-preview` route share the same class-based fallback structure for older saved template designs.
+- API route is `app/api/template-design/route.ts`.
+- The route sends `examples/cv-parts-sample.json`, not the full real CV JSON.
+- The route forces Claude to call `return_template_design`.
+- Generated design specs are saved under `.cache/templates/`.
+
+Still needed:
+
+- Convert the saved design spec into actual React renderer components.
+- Render real local `.cache/cv-parts/latest.json` through the selected template instead of fake preview content.
+- Decide whether future template iterations should edit generated source files or keep template specs as data.
 
 ### 4. Job-Link Optimized CV Generator
 
@@ -329,11 +384,12 @@ Possible output:
 
 1. Inspect the generated component JSON against the current refined CV.
 2. Adjust the component schema if the first real output is too shallow or too nested.
-3. Create the first HTML/CSS resume template.
-4. Render structured CV parts into the template.
-5. Add job-link input and optional instructions as another side-panel pipeline step.
-6. Add optional cover letter toggle.
-7. Add manual PDF export path from the rendered HTML page.
+3. Inspect the rendered template preview and generated `.cache/templates/latest.json`.
+4. Convert the generated template design spec/preview into a React renderer.
+5. Render structured CV parts into the template.
+6. Add job-link input and optional instructions as another side-panel pipeline step.
+7. Add optional cover letter toggle.
+8. Add manual PDF export path from the rendered HTML page.
 
 ## Development Notes
 

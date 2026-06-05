@@ -276,6 +276,130 @@ button {
   margin-top: 14px;
 }
 
+.template-workspace {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(320px, 0.72fr) minmax(480px, 1.28fr);
+}
+
+.template-chat-textarea {
+  min-height: 420px;
+}
+
+.template-preview-panel {
+  min-height: 720px;
+}
+
+.resume-preview-placeholder {
+  background: #fbfaf7;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 26px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  min-height: 620px;
+  padding: 28px;
+}
+
+.preview-rail {
+  background: var(--primary-soft);
+  border: 1px solid #c8dde8;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 18px;
+}
+
+.preview-main {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 6px 0;
+}
+
+.preview-line,
+.preview-title,
+.preview-section,
+.preview-skill {
+  background: #d6d0c4;
+  border-radius: 4px;
+}
+
+.preview-title {
+  height: 34px;
+  max-width: 380px;
+}
+
+.preview-line {
+  height: 12px;
+  max-width: 100%;
+}
+
+.preview-line-short {
+  max-width: 62%;
+}
+
+.preview-section {
+  height: 20px;
+  margin-top: 18px;
+  max-width: 220px;
+}
+
+.preview-skill {
+  height: 28px;
+}
+
+.template-result {
+  display: grid;
+  gap: 14px;
+}
+
+.template-preview-frame {
+  background: #f3f0e9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 680px;
+  width: 100%;
+}
+
+.template-result-header h3,
+.template-spec-grid h4 {
+  margin: 0 0 6px;
+}
+
+.template-result-header {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.template-result-header h3 {
+  font-size: 18px;
+}
+
+.template-spec-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.template-spec-grid > div {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.template-spec-grid p {
+  margin: 0;
+}
+
+.template-css-textarea {
+  min-height: 360px;
+}
+
 .actions {
   align-items: center;
   display: flex;
@@ -397,6 +521,18 @@ button {
   }
 
   .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .template-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-preview-placeholder {
+    grid-template-columns: 1fr;
+  }
+
+  .template-spec-grid {
     grid-template-columns: 1fr;
   }
 
