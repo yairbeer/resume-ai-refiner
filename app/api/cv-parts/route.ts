@@ -37,6 +37,7 @@ type CvParts = {
   };
   professionalExperience: CvPartBlock[];
   additionalExperience?: CvPartBlock[];
+  honorsAwards?: CvPartBlock[];
   patents?: CvPartBlock[];
   publications?: CvPartBlock[];
   education: CvPartBlock[];
@@ -171,7 +172,7 @@ function buildPrompt(cvText: string, sourceRefinement: RefinementLatest) {
     "- Extract the CV into the schema fields exactly as they appear in the source.",
     "- Preserve original source wording in rawText fields.",
     "- Use section-level blocks for the first split; do not over-normalize every bullet unless it naturally fits items.",
-    "- Include additionalExperience, patents, publications, and customSections only when present.",
+    "- Include additionalExperience, honorsAwards, patents, publications, and customSections only when present.",
     "- Omit projects and certifications if they are not present.",
     "- Do not invent employers, dates, degrees, links, metrics, patents, publications, skills, or missing placeholders.",
     "- Keep unresolved placeholders only if they already exist in the source CV.",
@@ -448,6 +449,10 @@ const CV_PARTS_TOOL_SCHEMA = {
           type: "array",
           items: { $ref: "#/$defs/cvPartBlock" },
         },
+        honorsAwards: {
+          type: "array",
+          items: { $ref: "#/$defs/cvPartBlock" },
+        },
         patents: {
           type: "array",
           items: { $ref: "#/$defs/cvPartBlock" },
@@ -546,6 +551,15 @@ const CV_PARTS_SAMPLE = {
           "* **Systems and Methods for Example Model Compression** - US Patent US0000000, published 2024.",
       },
     ],
+    honorsAwards: [
+      {
+        title: "3rd Place - Example Applied ML Competition",
+        organization: "Example Conference",
+        dates: "2022",
+        rawText:
+          "* **3rd Place - Example Applied ML Competition** - issued by Example Conference, 2022.",
+      },
+    ],
     publications: [
       {
         title: "Example Conference 2022",
@@ -564,7 +578,7 @@ const CV_PARTS_SAMPLE = {
     customSections: [],
   },
   sectionSummary: [
-    "Extracted contact, profile, skills, experience, patents, publications, and education.",
+    "Extracted contact, profile, skills, experience, honors, patents, publications, and education.",
     "No projects or certifications were present, so they were omitted.",
   ],
 };

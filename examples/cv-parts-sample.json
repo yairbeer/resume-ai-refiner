@@ -49,6 +49,14 @@
         "rawText": "* **Systems and Methods for Example Model Compression** - US Patent US0000000, published 2024."
       }
     ],
+    "honorsAwards": [
+      {
+        "title": "3rd Place - Example Applied ML Competition",
+        "organization": "Example Conference",
+        "dates": "2022",
+        "rawText": "* **3rd Place - Example Applied ML Competition** - issued by Example Conference, 2022."
+      }
+    ],
     "publications": [
       {
         "title": "Example Conference 2022",
@@ -66,7 +74,7 @@
     "customSections": []
   },
   "sectionSummary": [
-    "Extracted contact, profile, skills, experience, patents, publications, and education.",
+    "Extracted contact, profile, skills, experience, honors, patents, publications, and education.",
     "No projects or certifications were present, so they were omitted."
   ]
 }
