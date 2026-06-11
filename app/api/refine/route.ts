@@ -11,7 +11,6 @@ type RefineRequest = {
 type RefinePayload = {
   refinedCv: string;
   changeSummary: string[];
-  cacheFilePath?: string;
   cacheRelativePath?: string;
   cacheVersion?: number;
   cacheLatestPath?: string;
@@ -321,7 +320,6 @@ async function saveRefinedCv(
         version,
         format,
         path: cacheRelativePath,
-        absolutePath: cacheFilePath,
         createdAt: new Date().toISOString(),
       },
       null,
@@ -339,7 +337,6 @@ async function saveRefinedCv(
 
   return {
     cacheVersion: version,
-    cacheFilePath,
     cacheRelativePath,
     cacheLatestPath: latestRelativePath,
   };

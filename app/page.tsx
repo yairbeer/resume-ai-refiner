@@ -3,12 +3,11 @@
 import { ChangeEvent, useMemo, useState } from "react";
 
 type CvFormat = "markdown" | "text";
-type PipelineStep = "refine" | "components" | "template";
+type PipelineStep = "refine" | "components" | "template" | "cvPreview";
 
 type RefineResult = {
   refinedCv: string;
   changeSummary: string[];
-  cacheFilePath?: string;
   cacheRelativePath?: string;
   cacheVersion?: number;
   cacheLatestPath?: string;
@@ -17,7 +16,6 @@ type RefineResult = {
 type CvPartsResult = {
   cvParts: unknown;
   sectionSummary: string[];
-  cacheFilePath: string;
   cacheRelativePath: string;
   cacheVersion: number;
   cacheLatestPath: string;
@@ -48,7 +46,6 @@ type TemplateDesignResult = {
     css: string;
     implementationNotes: string[];
   };
-  cacheFilePath: string;
   cacheRelativePath: string;
   cacheVersion: number;
   cacheLatestPath: string;
@@ -312,6 +309,17 @@ export default function Home() {
             <span>03</span>
             Template designer
           </button>
+          <button
+            aria-current={activePipeline === "cvPreview" ? "step" : undefined}
+            className={`pipeline-tab ${
+              activePipeline === "cvPreview" ? "pipeline-tab-active" : ""
+            }`}
+            onClick={() => setActivePipeline("cvPreview")}
+            type="button"
+          >
+            <span>04</span>
+            CV preview
+          </button>
         </aside>
 
         <section className="main-panel" aria-label="Selected pipeline step">
@@ -426,10 +434,10 @@ export default function Home() {
                         ))}
                       </ol>
                     )}
-                    {result.cacheFilePath && (
+                    {result.cacheRelativePath && (
                       <p className="field-hint">
                         Saved version {result.cacheVersion} to{" "}
-                        <span className="mono">{result.cacheFilePath}</span>.
+                        <span className="mono">{result.cacheRelativePath}</span>.
                         Pipeline pointer:{" "}
                         <span className="mono">{result.cacheLatestPath}</span>
                       </p>
@@ -505,7 +513,7 @@ export default function Home() {
                   </ol>
                   <p className="field-hint">
                     Saved component version {cvPartsResult.cacheVersion} to{" "}
-                    <span className="mono">{cvPartsResult.cacheFilePath}</span>.
+                    <span className="mono">{cvPartsResult.cacheRelativePath}</span>.
                     Pipeline pointer:{" "}
                     <span className="mono">{cvPartsResult.cacheLatestPath}</span>
                   </p>
@@ -521,7 +529,7 @@ export default function Home() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activePipeline === "template" ? (
             <div className="template-workspace">
               <div className="panel" aria-label="Template instructions panel">
                 <div className="panel-header">
@@ -607,7 +615,7 @@ export default function Home() {
                           Saved template version{" "}
                           {templateDesignResult.cacheVersion} to{" "}
                           <span className="mono">
-                            {templateDesignResult.cacheFilePath}
+                            {templateDesignResult.cacheRelativePath}
                           </span>
                           .
                         </p>
@@ -617,7 +625,7 @@ export default function Home() {
                         href="/template-preview"
                         target="_blank"
                       >
-                        Open rendered CV
+                        Open template preview
                       </a>
                     </div>
                     <ol className="summary-list" aria-label="Template design summary">
@@ -684,6 +692,29 @@ export default function Home() {
                 )}
               </div>
             </div>
+          ) : (
+            <div className="panel cv-preview-panel" aria-label="Latest CV preview">
+              <div className="panel-header">
+                <div>
+                  <h2 className="panel-title">CV preview</h2>
+                  <p className="panel-subtitle">
+                    Latest CV components rendered with the latest saved template.
+                  </p>
+                </div>
+                <a
+                  className="button button-secondary"
+                  href="/cv-preview"
+                  target="_blank"
+                >
+                  Open in browser
+                </a>
+              </div>
+              <iframe
+                className="cv-preview-frame"
+                src="/cv-preview"
+                title="Latest rendered CV preview"
+              />
+            </div>
           )}
         </section>
       </section>
@@ -714,6 +745,7 @@ function buildTemplatePreviewSrcDoc(result: TemplateDesignResult) {
     "<head>",
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:; base-uri \'none\'; form-action \'none\'" />',
     "<style>",
     [
       "body { margin: 0; background: #f3f0e9; font-family: Arial, sans-serif; }",

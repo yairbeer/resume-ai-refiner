@@ -6,7 +6,7 @@ type RefinementLatest = {
   version: number;
   format: "markdown" | "text";
   path: string;
-  absolutePath: string;
+  absolutePath?: string;
   createdAt: string;
 };
 
@@ -50,7 +50,6 @@ type CvPartsPayload = {
 };
 
 type CvPartsResponse = CvPartsPayload & {
-  cacheFilePath: string;
   cacheRelativePath: string;
   cacheVersion: number;
   cacheLatestPath: string;
@@ -154,12 +153,13 @@ export async function POST() {
     );
   }
 
-  const cacheInfo = await saveCvParts(parsed, sourceRefinement);
+  const publicSourceRefinement = toPublicSourceRefinement(sourceRefinement);
+  const cacheInfo = await saveCvParts(parsed, publicSourceRefinement);
 
   return NextResponse.json({
     ...parsed,
     ...cacheInfo,
-    sourceRefinement,
+    sourceRefinement: publicSourceRefinement,
   } satisfies CvPartsResponse);
 }
 
@@ -265,7 +265,11 @@ async function readLatestRefinement() {
   }
 }
 
-function getSafeRefinementPath(candidatePath: string) {
+function getSafeRefinementPath(candidatePath: string | undefined) {
+  if (!candidatePath) {
+    return null;
+  }
+
   const fileName = basename(candidatePath);
 
   if (!/^refined-cv-v\d{4}\.(?:md|txt)$/.test(fileName)) {
@@ -278,6 +282,15 @@ function getSafeRefinementPath(candidatePath: string) {
     VERSION_DIR,
     fileName,
   );
+}
+
+function toPublicSourceRefinement(sourceRefinement: RefinementLatest) {
+  return {
+    version: sourceRefinement.version,
+    format: sourceRefinement.format,
+    path: sourceRefinement.path,
+    createdAt: sourceRefinement.createdAt,
+  };
 }
 
 function getMaxTokens() {
@@ -321,7 +334,6 @@ async function saveCvParts(
       {
         version,
         path: cacheRelativePath,
-        absolutePath: cacheFilePath,
         sourceRefinement,
         createdAt,
       },
@@ -341,7 +353,6 @@ async function saveCvParts(
 
   return {
     cacheVersion: version,
-    cacheFilePath,
     cacheRelativePath,
     cacheLatestPath: latestRelativePath,
   };

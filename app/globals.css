@@ -400,6 +400,18 @@ button {
   min-height: 360px;
 }
 
+.cv-preview-panel {
+  min-height: 820px;
+}
+
+.cv-preview-frame {
+  background: #f3f0e9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 720px;
+  width: 100%;
+}
+
 .actions {
   align-items: center;
   display: flex;

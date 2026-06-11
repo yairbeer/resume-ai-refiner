@@ -31,7 +31,6 @@ type TemplateDesignPayload = {
 };
 
 type TemplateDesignResponse = TemplateDesignPayload & {
-  cacheFilePath: string;
   cacheRelativePath: string;
   cacheVersion: number;
   cacheLatestPath: string;
@@ -150,6 +149,7 @@ function buildSystemPrompt(sample: string) {
     "Return a template design spec, an HTML preview, and CSS through the required tool.",
     "The HTML preview must be a renderable fragment rooted at <article class=\"resume-template\"> and filled with fake sample content only.",
     "The generated CSS must be printable, readable, and scoped with a .resume-template root selector.",
+    "Print/PDF output must preserve the visual design. Include print-color-adjust: exact and -webkit-print-color-adjust: exact on .resume-template and any major colored regions. Do not add @media print rules that remove backgrounds, accents, borders, shadows, rails, or other graphic elements unless the user explicitly asks for a plain print version.",
     "The renderer will later apply this design to real local .cache/cv-parts/latest.json data.",
     "",
     "Fake CV-parts sample:",
@@ -166,7 +166,8 @@ function buildPrompt(instructions: string) {
     "- Use a React-based HTML resume structure.",
     "- Keep the template professional and readable.",
     "- Handle omitted optional sections gracefully.",
-    "- Prefer section names from the sample: contact, profile, technicalSkills, professionalExperience, patents, publications, education, customSections.",
+    "- Preserve visual styling when printed to PDF; keep colored areas, rail/background treatments, borders, accents, and graphic hierarchy visible in print.",
+    "- Prefer section names from the sample: contact, profile, technicalSkills, professionalExperience, additionalExperience, honorsAwards, patents, publications, education, customSections.",
     "- Return renderable HTML and CSS, not Markdown explanation.",
   ].join("\n");
 }
@@ -240,7 +241,6 @@ async function readLatestTemplateDesign() {
     const latest = JSON.parse(latestJson) as {
       version?: unknown;
       path?: unknown;
-      absolutePath?: unknown;
       createdAt?: unknown;
     };
 
@@ -266,8 +266,6 @@ async function readLatestTemplateDesign() {
 
     return normalizeTemplateDesignResponse({
       templateDesign: cacheObject.templateDesign,
-      cacheFilePath:
-        typeof latest.absolutePath === "string" ? latest.absolutePath : cacheFilePath,
       cacheRelativePath: latest.path,
       cacheVersion:
         typeof latest.version === "number"
@@ -295,7 +293,6 @@ function normalizeTemplateDesignResponse(
           ? templateDesign.htmlPreview
           : buildFallbackPreviewHtml(templateDesign),
     },
-    cacheFilePath: value.cacheFilePath ?? "",
     cacheRelativePath: value.cacheRelativePath ?? "",
     cacheVersion: value.cacheVersion ?? 0,
     cacheLatestPath: value.cacheLatestPath ?? `${TEMPLATE_CACHE_DIR}/${LATEST_FILE}`,
@@ -472,7 +469,6 @@ async function saveTemplateDesign(payload: TemplateDesignPayload) {
       {
         version,
         path: cacheRelativePath,
-        absolutePath: cacheFilePath,
         createdAt,
       },
       null,
@@ -490,7 +486,6 @@ async function saveTemplateDesign(payload: TemplateDesignPayload) {
 
   return {
     cacheVersion: version,
-    cacheFilePath,
     cacheRelativePath,
     cacheLatestPath: latestRelativePath,
   };

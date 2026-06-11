@@ -2,7 +2,7 @@
 
 First MVP for refining a stale CV from Markdown or plain text.
 
-The app does not store old or refined CVs. It reads an uploaded `.md`, `.markdown`, or `.txt` file in the browser, sends the text and update instructions to an API route, and shows the refined CV in the same format for copy or download.
+The app reads an uploaded `.md`, `.markdown`, or `.txt` file in the browser, sends the text and update instructions to a local API route, and shows the refined CV in the same format for copy or download. Refined outputs and downstream pipeline artifacts are saved under the local `.cache/` folder, which is ignored by git.
 
 ## Run locally
 
@@ -15,6 +15,10 @@ npm run dev
 Set `ANTHROPIC_API_KEY` in `.env.local`. `ANTHROPIC_MODEL` is optional and defaults to `claude-sonnet-4-6`. `ANTHROPIC_MAX_TOKENS` is optional and defaults to `20000`.
 
 API route logs appear in the terminal running `npm run dev`. If the app returns a parse-related `502`, that terminal will show Claude metadata, output length, and a short raw response preview.
+
+## Public repo note
+
+This repository is safe to publish as source code, but the app is intended to run locally. Do not commit `.env.local` or `.cache/`; both are ignored by `.gitignore`.
 
 ## MVP behavior
 

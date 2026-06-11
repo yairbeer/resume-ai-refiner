@@ -10,11 +10,12 @@ The product should stay practical and pipeline-oriented before becoming a polish
 
 ## Current State
 
-The pipeline shell now has three selectable steps in a left side panel:
+The pipeline shell now has four selectable steps in a left side panel:
 
 1. Refine CV.
 2. CV to components.
 3. Template designer.
+4. CV preview.
 
 The first MVP refinement step is working:
 
@@ -39,6 +40,8 @@ Implemented files:
 - API route: `app/api/refine/route.ts`.
 - API route: `app/api/cv-parts/route.ts`.
 - API route: `app/api/template-design/route.ts`.
+- Rendered CV preview route: `app/cv-preview/page.tsx`.
+- Template/sample preview route: `app/template-preview/page.tsx`.
 - CV parts sample fixture: `examples/cv-parts-sample.json`.
 - Provider: Anthropic Messages API.
 - Default model: `claude-sonnet-4-6`.
@@ -65,6 +68,8 @@ Verified:
 - The template preview panel renders generated HTML/CSS above the template metadata.
 - The standalone `/template-preview` route renders the latest saved template in a normal browser tab.
 - Existing saved templates without `htmlPreview` render through a class-based fallback preview.
+- `CV preview` appears as step 4 in the side panel.
+- `/cv-preview` renders the latest `.cache/cv-parts/latest.json` with the latest `.cache/templates/latest.json`.
 
 ## Cache Contract
 
@@ -303,7 +308,33 @@ Still needed:
 - Render real local `.cache/cv-parts/latest.json` through the selected template instead of fake preview content.
 - Decide whether future template iterations should edit generated source files or keep template specs as data.
 
-### 4. Job-Link Optimized CV Generator
+### 4. Render Latest CV Preview
+
+Status: implemented.
+
+Render the latest structured CV parts through the latest saved template.
+
+Input:
+
+- `.cache/cv-parts/latest.json`
+- `.cache/templates/latest.json`
+
+Behavior:
+
+- Read the latest CV components.
+- Read the latest template design.
+- Build class-based resume HTML from real CV parts.
+- Apply the latest template CSS.
+- Render the result in the app as step `04 CV preview`.
+- Allow opening the same render directly at `/cv-preview`.
+
+Important:
+
+- This is separate from `/template-preview`, which is only the template/sample preview.
+- This step uses real local CV component data and does not call the LLM.
+- The renderer should omit empty optional sections.
+
+### 5. Job-Link Optimized CV Generator
 
 Status: planned.
 
@@ -343,7 +374,7 @@ Important behavior:
 - Keep a change summary or rationale for what was optimized.
 - Preserve enough traceability to know which CV parts were used.
 
-### 5. Cover Letter Toggle
+### 6. Cover Letter Toggle
 
 Status: planned.
 
@@ -356,7 +387,7 @@ Behavior:
 - Should match the role and company.
 - Should avoid fake enthusiasm, false personal connections, or claims not supported by the CV.
 
-### 6. PDF Export
+### 7. PDF Export
 
 Status: planned.
 
@@ -385,8 +416,8 @@ Possible output:
 1. Inspect the generated component JSON against the current refined CV.
 2. Adjust the component schema if the first real output is too shallow or too nested.
 3. Inspect the rendered template preview and generated `.cache/templates/latest.json`.
-4. Convert the generated template design spec/preview into a React renderer.
-5. Render structured CV parts into the template.
+4. Inspect `/cv-preview` against the latest real CV parts.
+5. Improve the renderer mapping where the latest template CSS expects more specific classes.
 6. Add job-link input and optional instructions as another side-panel pipeline step.
 7. Add optional cover letter toggle.
 8. Add manual PDF export path from the rendered HTML page.

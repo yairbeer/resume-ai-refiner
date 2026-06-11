@@ -31,23 +31,38 @@ export default async function TemplatePreviewPage() {
   }
 
   return (
-    <main className="template-preview-page">
-      <style
-        dangerouslySetInnerHTML={{
-          __html: [
-            "body { margin: 0; background: #f3f0e9; }",
-            ".template-preview-page { min-height: 100vh; padding: 24px; }",
-            template.css ?? "",
-          ].join("\n"),
-        }}
-      />
-      <div
-        dangerouslySetInnerHTML={{
-          __html: getPreviewHtml(template),
-        }}
+    <main style={previewPageStyle}>
+      <iframe
+        sandbox=""
+        srcDoc={buildTemplatePreviewSrcDoc(template)}
+        style={previewFrameStyle}
+        title="Rendered resume template preview"
       />
     </main>
   );
+}
+
+function buildTemplatePreviewSrcDoc(template: TemplateDesign) {
+  return [
+    "<!doctype html>",
+    '<html lang="en">',
+    "<head>",
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:; base-uri \'none\'; form-action \'none\'" />',
+    "<style>",
+    [
+      "body { margin: 0; background: #f3f0e9; font-family: Arial, sans-serif; }",
+      "@media screen { body { padding: 24px; } }",
+    ].join("\n"),
+    template.css ?? "",
+    "</style>",
+    "</head>",
+    "<body>",
+    getPreviewHtml(template),
+    "</body>",
+    "</html>",
+  ].join("\n");
 }
 
 function getPreviewHtml(template: TemplateDesign) {
@@ -238,4 +253,17 @@ const emptyPageStyle = {
   margin: "48px auto",
   maxWidth: "720px",
   padding: "0 24px",
+};
+
+const previewPageStyle = {
+  background: "#f3f0e9",
+  minHeight: "100vh",
+  padding: 0,
+};
+
+const previewFrameStyle = {
+  border: 0,
+  display: "block",
+  minHeight: "100vh",
+  width: "100%",
 };
