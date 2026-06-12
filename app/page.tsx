@@ -3,7 +3,12 @@
 import { ChangeEvent, useMemo, useState } from "react";
 
 type CvFormat = "markdown" | "text";
-type PipelineStep = "refine" | "components" | "template" | "cvPreview";
+type PipelineStep =
+  | "refine"
+  | "components"
+  | "template"
+  | "cvPreview"
+  | "personalization";
 
 type RefineResult = {
   refinedCv: string;
@@ -51,6 +56,92 @@ type TemplateDesignResult = {
   cacheLatestPath: string;
 };
 
+type JobPostingResult = {
+  url: string;
+  fetchedAt: string;
+  markdown: string;
+  title?: string;
+  sourceContentType?: string;
+};
+
+type PersonalizationBundle = {
+  version: number;
+  saveName: string;
+  createdAt: string;
+  job: {
+    url: string | null;
+    markdown: string;
+    fetchedAt: string | null;
+  };
+  instructions: {
+    fit: string;
+    style: string;
+  };
+  source: {
+    cvPartsPath: string;
+    templatePath: string;
+  };
+  roleSummary: string;
+  personalizedCvParts: unknown;
+  style: unknown;
+  partDecisions: Array<{
+    section: string;
+    decision: "changed" | "unchanged" | "ignored";
+    reason: string;
+  }>;
+  fitSummary: string[];
+  warnings: string[];
+};
+
+type PersonalizeResult = {
+  bundle: PersonalizationBundle;
+};
+
+type SavedPersonalizationItem = {
+  fileName: string;
+  cacheRelativePath: string;
+  updatedAt: string;
+};
+
+type CvBlock = {
+  title?: string;
+  organization?: string;
+  role?: string;
+  dates?: string;
+  items?: string[];
+  rawText?: string;
+};
+
+type CvPartsForRender = {
+  contact?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+    links?: Array<{ label?: string; url?: string }>;
+    rawText?: string;
+  };
+  profile?: { rawText?: string };
+  technicalSkills?: {
+    groups?: Array<{ label?: string; items?: string[]; rawText?: string }>;
+    rawText?: string;
+  };
+  professionalExperience?: CvBlock[];
+  additionalExperience?: CvBlock[];
+  honorsAwards?: CvBlock[];
+  patents?: CvBlock[];
+  publications?: CvBlock[];
+  education?: CvBlock[];
+  customSections?: Array<{ heading?: string; rawText?: string }>;
+};
+
+type TemplateStyleForRender = {
+  layout?: {
+    leftRailSections?: string[];
+    mainSections?: string[];
+  };
+  css?: string;
+};
+
 const markdownExtensions = new Set(["md", "markdown"]);
 
 export default function Home() {
@@ -60,10 +151,26 @@ export default function Home() {
   const [fileName, setFileName] = useState("");
   const [format, setFormat] = useState<CvFormat>("text");
   const [templateInstructions, setTemplateInstructions] = useState("");
+  const [jobUrl, setJobUrl] = useState("");
+  const [jobMarkdown, setJobMarkdown] = useState("");
+  const [jobFetchedAt, setJobFetchedAt] = useState<string | null>(null);
+  const [fitInstructions, setFitInstructions] = useState("");
+  const [styleInstructions, setStyleInstructions] = useState("");
+  const [personalizationJson, setPersonalizationJson] = useState("");
+  const [saveName, setSaveName] = useState("");
+  const [savedPersonalizations, setSavedPersonalizations] = useState<
+    SavedPersonalizationItem[]
+  >([]);
+  const [selectedPersonalizationFile, setSelectedPersonalizationFile] =
+    useState("");
   const [result, setResult] = useState<RefineResult | null>(null);
   const [cvPartsResult, setCvPartsResult] = useState<CvPartsResult | null>(null);
   const [templateDesignResult, setTemplateDesignResult] =
     useState<TemplateDesignResult | null>(null);
+  const [jobPostingResult, setJobPostingResult] =
+    useState<JobPostingResult | null>(null);
+  const [personalizeResult, setPersonalizeResult] =
+    useState<PersonalizeResult | null>(null);
   const [status, setStatus] = useState("");
   const [statusKind, setStatusKind] = useState<"idle" | "success" | "error">(
     "idle",
@@ -72,9 +179,21 @@ export default function Home() {
   const [isSplittingCv, setIsSplittingCv] = useState(false);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+  const [isFetchingJob, setIsFetchingJob] = useState(false);
+  const [isPersonalizing, setIsPersonalizing] = useState(false);
+  const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
+  const [isLoadingPersonalizationList, setIsLoadingPersonalizationList] =
+    useState(false);
+  const [isLoadingPersonalization, setIsLoadingPersonalization] = useState(false);
 
   const canRefine = cvText.trim().length > 0 && instructions.trim().length > 0;
   const canGenerateTemplate = templateInstructions.trim().length > 0;
+  const canFetchJob = jobUrl.trim().length > 0;
+  const canPersonalize = hasEnoughJobText(jobMarkdown);
+  const canSavePersonalization =
+    personalizationJson.trim().length > 0 && saveName.trim().length > 0;
+  const canLoadPersonalization = selectedPersonalizationFile.trim().length > 0;
+  const canCreateHtml = personalizationJson.trim().length > 0;
   const outputExtension = format === "markdown" ? "md" : "txt";
   const downloadName = useMemo(
     () => buildDownloadName(fileName, outputExtension),
@@ -232,6 +351,276 @@ export default function Home() {
     }
   }
 
+  async function fetchJobPosting() {
+    if (!canFetchJob) {
+      setStatus("Add a job URL before fetching.");
+      setStatusKind("error");
+      return;
+    }
+
+    setIsFetchingJob(true);
+    setStatus("Fetching job posting...");
+    setStatusKind("idle");
+
+    try {
+      const response = await fetch("/api/job-posting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: jobUrl }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Job fetch failed.");
+      }
+
+      const jobPosting = data as JobPostingResult;
+
+      setJobPostingResult(jobPosting);
+      setJobMarkdown(jobPosting.markdown);
+      setJobFetchedAt(jobPosting.fetchedAt);
+      setPersonalizeResult(null);
+      setPersonalizationJson("");
+      setStatus("Job posting is ready to edit.");
+      setStatusKind("success");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Job fetch failed.");
+      setStatusKind("error");
+    } finally {
+      setIsFetchingJob(false);
+    }
+  }
+
+  async function personalizeCv() {
+    if (!canPersonalize) {
+      setStatus("Add or fetch job Markdown before personalizing.");
+      setStatusKind("error");
+      return;
+    }
+
+    setIsPersonalizing(true);
+    setStatus("Personalizing CV parts for this role...");
+    setStatusKind("idle");
+
+    try {
+      const response = await fetch("/api/personalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fitInstructions,
+          jobFetchedAt,
+          jobMarkdown,
+          jobUrl,
+          styleInstructions,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Personalization failed.");
+      }
+
+      const parsed = data as PersonalizeResult;
+      const formattedJson = JSON.stringify(parsed.bundle, null, 2);
+
+      setPersonalizeResult(parsed);
+      setPersonalizationJson(formattedJson);
+      setStatus("Personalized bundle is ready to edit and save.");
+      setStatusKind("success");
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Personalization failed.",
+      );
+      setStatusKind("error");
+    } finally {
+      setIsPersonalizing(false);
+    }
+  }
+
+  async function savePersonalizationAs() {
+    if (!canSavePersonalization) {
+      setStatus("Add a save name and personalization JSON before saving.");
+      setStatusKind("error");
+      return;
+    }
+
+    let bundle: PersonalizationBundle;
+
+    try {
+      bundle = mergeCurrentPersonalizationInputs(
+        JSON.parse(personalizationJson) as PersonalizationBundle,
+      );
+    } catch {
+      setStatus("Personalization output must be valid JSON before saving.");
+      setStatusKind("error");
+      return;
+    }
+
+    setIsSavingPersonalization(true);
+    setStatus("Saving personalization bundle...");
+    setStatusKind("idle");
+
+    try {
+      const response = await fetch("/api/personalizations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ saveName, bundle }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Save failed.");
+      }
+
+      const savedBundle = data.bundle as PersonalizationBundle;
+      const fileName = String(data.fileName ?? buildJsonDownloadName(saveName));
+      const savedJson = JSON.stringify(savedBundle, null, 2);
+
+      setPersonalizationJson(savedJson);
+      setPersonalizeResult({ bundle: savedBundle });
+      setSelectedPersonalizationFile(fileName);
+      downloadJson(savedJson, fileName);
+      setStatus(`Saved to ${data.cacheRelativePath} and downloaded ${fileName}.`);
+      setStatusKind("success");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Save failed.");
+      setStatusKind("error");
+    } finally {
+      setIsSavingPersonalization(false);
+    }
+  }
+
+  async function loadSavedPersonalizationList() {
+    setIsLoadingPersonalizationList(true);
+    setStatus("Loading saved personalizations...");
+    setStatusKind("idle");
+
+    try {
+      const response = await fetch("/api/personalizations");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Could not load saved personalizations.");
+      }
+
+      const items = (data.items ?? []) as SavedPersonalizationItem[];
+
+      setSavedPersonalizations(items);
+      if (!selectedPersonalizationFile && items[0]) {
+        setSelectedPersonalizationFile(items[0].fileName);
+      }
+      setStatus(
+        items.length
+          ? "Saved personalizations are ready to load."
+          : "No saved personalizations found.",
+      );
+      setStatusKind(items.length ? "success" : "idle");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not load saved personalizations.",
+      );
+      setStatusKind("error");
+    } finally {
+      setIsLoadingPersonalizationList(false);
+    }
+  }
+
+  async function loadSavedPersonalization() {
+    if (!canLoadPersonalization) {
+      setStatus("Choose a saved personalization first.");
+      setStatusKind("error");
+      return;
+    }
+
+    setIsLoadingPersonalization(true);
+    setStatus("Loading saved personalization...");
+    setStatusKind("idle");
+
+    try {
+      const response = await fetch(
+        `/api/personalizations?fileName=${encodeURIComponent(
+          selectedPersonalizationFile,
+        )}`,
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Could not load saved personalization.");
+      }
+
+      const bundle = data.bundle as PersonalizationBundle;
+
+      setPersonalizeResult({ bundle });
+      setPersonalizationJson(JSON.stringify(bundle, null, 2));
+      setSaveName(bundle.saveName || selectedPersonalizationFile.replace(/\.json$/, ""));
+      setJobUrl(bundle.job?.url ?? "");
+      setJobMarkdown(bundle.job?.markdown ?? "");
+      setJobFetchedAt(bundle.job?.fetchedAt ?? null);
+      setFitInstructions(bundle.instructions?.fit ?? "");
+      setStyleInstructions(bundle.instructions?.style ?? "");
+      setStatus(`Loaded ${data.cacheRelativePath}.`);
+      setStatusKind("success");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Could not load saved personalization.",
+      );
+      setStatusKind("error");
+    } finally {
+      setIsLoadingPersonalization(false);
+    }
+  }
+
+  function createPersonalizationHtml() {
+    if (!canCreateHtml) {
+      setStatus("Create or load personalization JSON before creating HTML.");
+      setStatusKind("error");
+      return;
+    }
+
+    try {
+      const bundle = mergeCurrentPersonalizationInputs(
+        JSON.parse(personalizationJson) as PersonalizationBundle,
+      );
+      const fileName = buildHtmlDownloadName(saveName || bundle.saveName);
+      const html = buildPersonalizationHtml(bundle);
+
+      downloadText(html, fileName, "text/html");
+      setStatus(`Created ${fileName}.`);
+      setStatusKind("success");
+    } catch (error) {
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "Personalization output must be valid JSON before creating HTML.",
+      );
+      setStatusKind("error");
+    }
+  }
+
+  function mergeCurrentPersonalizationInputs(
+    bundle: PersonalizationBundle,
+  ): PersonalizationBundle {
+    return {
+      ...bundle,
+      saveName: saveName.trim() || bundle.saveName || "",
+      job: {
+        ...(bundle.job ?? {}),
+        url: jobUrl.trim() || bundle.job?.url || null,
+        markdown: jobMarkdown,
+        fetchedAt: jobFetchedAt ?? bundle.job?.fetchedAt ?? null,
+      },
+      instructions: {
+        ...(bundle.instructions ?? {}),
+        fit: fitInstructions,
+        style: styleInstructions,
+      },
+    };
+  }
+
   async function copyResult() {
     if (!result) {
       return;
@@ -254,6 +643,20 @@ export default function Home() {
     const link = document.createElement("a");
     link.href = url;
     link.download = downloadName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadJson(json: string, fileName: string) {
+    downloadText(json, fileName, "application/json");
+  }
+
+  function downloadText(text: string, fileName: string, type: string) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -320,11 +723,24 @@ export default function Home() {
             <span>04</span>
             CV preview
           </button>
+          <button
+            aria-current={
+              activePipeline === "personalization" ? "step" : undefined
+            }
+            className={`pipeline-tab ${
+              activePipeline === "personalization" ? "pipeline-tab-active" : ""
+            }`}
+            onClick={() => setActivePipeline("personalization")}
+            type="button"
+          >
+            <span>05</span>
+            Personalization
+          </button>
         </aside>
 
         <section className="main-panel" aria-label="Selected pipeline step">
           {activePipeline === "refine" ? (
-            <div className="workspace">
+            <div className="workspace" key="refine">
               <div className="panel" aria-label="CV input panel">
                 <div className="panel-header">
                   <div>
@@ -473,7 +889,11 @@ export default function Home() {
               </div>
             </div>
           ) : activePipeline === "components" ? (
-            <div className="panel components-panel" aria-label="CV components panel">
+            <div
+              className="panel components-panel"
+              aria-label="CV components panel"
+              key="components"
+            >
               <div className="panel-header">
                 <div>
                   <h2 className="panel-title">CV to components</h2>
@@ -530,7 +950,7 @@ export default function Home() {
               )}
             </div>
           ) : activePipeline === "template" ? (
-            <div className="template-workspace">
+            <div className="template-workspace" key="template">
               <div className="panel" aria-label="Template instructions panel">
                 <div className="panel-header">
                   <div>
@@ -692,8 +1112,12 @@ export default function Home() {
                 )}
               </div>
             </div>
-          ) : (
-            <div className="panel cv-preview-panel" aria-label="Latest CV preview">
+          ) : activePipeline === "cvPreview" ? (
+            <div
+              className="panel cv-preview-panel"
+              aria-label="Latest CV preview"
+              key="cv-preview"
+            >
               <div className="panel-header">
                 <div>
                   <h2 className="panel-title">CV preview</h2>
@@ -715,6 +1139,229 @@ export default function Home() {
                 title="Latest rendered CV preview"
               />
             </div>
+          ) : (
+            <div
+              className="personalization-workspace"
+              aria-label="Personalization panel"
+              key="personalization"
+            >
+              <div className="panel" aria-label="Job posting and instructions">
+                <div className="panel-header">
+                  <div>
+                    <h2 className="panel-title">Personalization</h2>
+                    <p className="panel-subtitle">
+                      Fetch a role, edit the Markdown, then target CV parts.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="job-url">
+                    Job URL
+                  </label>
+                  <div className="inline-control-row">
+                    <input
+                      className="text-input mono"
+                      id="job-url"
+                      onChange={(event) => setJobUrl(event.target.value)}
+                      placeholder="https://company.example/jobs/role"
+                      type="url"
+                      value={jobUrl}
+                    />
+                    <button
+                      className="button button-primary"
+                      disabled={!canFetchJob || isFetchingJob}
+                      onClick={fetchJobPosting}
+                      type="button"
+                    >
+                      {isFetchingJob ? "Fetching..." : "Fetch job"}
+                    </button>
+                  </div>
+                  {jobPostingResult ? (
+                    <p className="field-hint">
+                      {jobPostingResult.title
+                        ? `${jobPostingResult.title} -> `
+                        : ""}
+                      fetched {new Date(jobPostingResult.fetchedAt).toLocaleString()}
+                    </p>
+                  ) : (
+                    <p className="field-hint">
+                      You can also paste job Markdown directly below. Needs at
+                      least 12 words before personalization runs.
+                    </p>
+                  )}
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="job-markdown">
+                    Job Markdown
+                  </label>
+                  <textarea
+                    className="textarea job-markdown-textarea mono"
+                    id="job-markdown"
+                    onChange={(event) => {
+                      setJobMarkdown(event.target.value);
+                      setPersonalizeResult(null);
+                      setPersonalizationJson("");
+                    }}
+                    placeholder="Fetched or pasted job description Markdown."
+                    value={jobMarkdown}
+                  />
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="fit-instructions">
+                    Fit instructions
+                  </label>
+                  <textarea
+                    className="textarea compact-textarea"
+                    id="fit-instructions"
+                    onChange={(event) => setFitInstructions(event.target.value)}
+                    placeholder="Optional: emphasize agentic AI, keep leadership compact, ignore relocation wording."
+                    value={fitInstructions}
+                  />
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="style-instructions">
+                    Style instructions
+                  </label>
+                  <textarea
+                    className="textarea compact-textarea"
+                    id="style-instructions"
+                    onChange={(event) => setStyleInstructions(event.target.value)}
+                    placeholder="Optional: only use this if you want to change the saved CV style."
+                    value={styleInstructions}
+                  />
+                </div>
+
+                <div className="actions">
+                  <button
+                    className="button button-primary"
+                    disabled={!canPersonalize || isPersonalizing}
+                    onClick={personalizeCv}
+                    type="button"
+                  >
+                    {isPersonalizing ? "Personalizing..." : "Personalize"}
+                  </button>
+                  <p
+                    className={`status-line ${
+                      statusKind === "error"
+                        ? "status-error"
+                        : statusKind === "success"
+                          ? "status-success"
+                          : ""
+                    }`}
+                    role="status"
+                  >
+                    {status}
+                  </p>
+                </div>
+              </div>
+
+              <div className="panel" aria-label="Personalization output">
+                <div className="panel-header">
+                  <div>
+                    <h2 className="panel-title">Output</h2>
+                    <p className="panel-subtitle">
+                      Edit the bundle JSON before saving if needed.
+                    </p>
+                  </div>
+                </div>
+
+                {personalizeResult ? (
+                  <div className="personalization-summary">
+                    <p className="role-summary">
+                      {personalizeResult.bundle.roleSummary}
+                    </p>
+                    <div className="decision-grid">
+                      {personalizeResult.bundle.partDecisions.map((decision) => (
+                        <div
+                          className={`decision-pill decision-${decision.decision}`}
+                          key={`${decision.section}-${decision.decision}`}
+                        >
+                          <strong>{decision.section}</strong>
+                          <span>{decision.decision}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {personalizeResult.bundle.warnings.length > 0 && (
+                      <ol className="summary-list" aria-label="Warnings">
+                        {personalizeResult.bundle.warnings.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="load-saved-row">
+                  <select
+                    className="text-input"
+                    onChange={(event) =>
+                      setSelectedPersonalizationFile(event.target.value)
+                    }
+                    value={selectedPersonalizationFile}
+                  >
+                    <option value="">Choose saved bundle</option>
+                    {savedPersonalizations.map((item) => (
+                      <option key={item.fileName} value={item.fileName}>
+                        {item.fileName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="button button-secondary"
+                    disabled={isLoadingPersonalizationList}
+                    onClick={loadSavedPersonalizationList}
+                    type="button"
+                  >
+                    {isLoadingPersonalizationList ? "Refreshing..." : "Refresh"}
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    disabled={!canLoadPersonalization || isLoadingPersonalization}
+                    onClick={loadSavedPersonalization}
+                    type="button"
+                  >
+                    {isLoadingPersonalization ? "Loading..." : "Load"}
+                  </button>
+                </div>
+
+                <textarea
+                  className="textarea personalization-output-textarea mono"
+                  onChange={(event) => setPersonalizationJson(event.target.value)}
+                  placeholder="Personalized bundle JSON will appear here."
+                  value={personalizationJson}
+                />
+
+                <div className="save-as-row">
+                  <input
+                    className="text-input"
+                    onChange={(event) => setSaveName(event.target.value)}
+                    placeholder="Save as name"
+                    type="text"
+                    value={saveName}
+                  />
+                  <button
+                    className="button button-secondary"
+                    disabled={!canSavePersonalization || isSavingPersonalization}
+                    onClick={savePersonalizationAs}
+                    type="button"
+                  >
+                    {isSavingPersonalization ? "Saving..." : "Save as"}
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    disabled={!canCreateHtml}
+                    onClick={createPersonalizationHtml}
+                    type="button"
+                  >
+                    Create HTML
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </section>
       </section>
@@ -734,8 +1381,294 @@ function buildDownloadName(fileName: string, extension: string) {
   return `${baseName}-refined.${extension}`;
 }
 
+function buildJsonDownloadName(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return `${slug || "personalization"}.json`;
+}
+
+function buildHtmlDownloadName(value: string) {
+  return buildJsonDownloadName(value).replace(/\.json$/, ".html");
+}
+
+function buildPersonalizationHtml(bundle: PersonalizationBundle) {
+  const style = asTemplateStyle(bundle.style);
+  const cvParts = asCvParts(bundle.personalizedCvParts);
+
+  return [
+    "<!doctype html>",
+    '<html lang="en">',
+    "<head>",
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    `<title>${escapeHtml(bundle.saveName || "Personalized CV")}</title>`,
+    "<style>",
+    [
+      "body { margin: 0; background: #f3f0e9; font-family: Arial, sans-serif; }",
+      "@media screen { body { padding: 24px; } }",
+    ].join("\n"),
+    style.css ?? "",
+    "</style>",
+    "</head>",
+    "<body>",
+    buildCvHtml(style, cvParts),
+    "</body>",
+    "</html>",
+  ].join("\n");
+}
+
+function asTemplateStyle(value: unknown): TemplateStyleForRender {
+  return value && typeof value === "object"
+    ? (value as TemplateStyleForRender)
+    : {};
+}
+
+function asCvParts(value: unknown): CvPartsForRender {
+  return value && typeof value === "object" ? (value as CvPartsForRender) : {};
+}
+
+function buildCvHtml(template: TemplateStyleForRender, cvParts: CvPartsForRender) {
+  const leftRailSections = template.layout?.leftRailSections ?? [
+    "contact",
+    "technicalSkills",
+    "education",
+  ];
+  const mainSections = template.layout?.mainSections ?? [
+    "profile",
+    "professionalExperience",
+    "additionalExperience",
+    "honorsAwards",
+    "patents",
+    "publications",
+    "customSections",
+  ];
+
+  return [
+    '<article class="resume-template">',
+    `<aside class="rail">${leftRailSections
+      .map((section) => renderCvSection(section, cvParts))
+      .join("")}</aside>`,
+    `<main class="main">${mainSections
+      .map((section) => renderCvSection(section, cvParts))
+      .join("")}</main>`,
+    "</article>",
+  ].join("");
+}
+
+function renderCvSection(section: string, cvParts: CvPartsForRender) {
+  switch (section) {
+    case "contact":
+      return renderContact(cvParts.contact);
+    case "technicalSkills":
+      return renderSkills(cvParts.technicalSkills);
+    case "education":
+      return renderBlocks("Education", "edu", cvParts.education);
+    case "profile":
+      return cvParts.profile?.rawText
+        ? [
+            '<section class="profile-section">',
+            '<div class="section-heading">Profile</div>',
+            `<p class="profile-text">${escapeHtml(stripMarkdown(cvParts.profile.rawText))}</p>`,
+            "</section>",
+          ].join("")
+        : "";
+    case "professionalExperience":
+      return renderExperience(cvParts.professionalExperience);
+    case "additionalExperience":
+      return renderBlocks("Additional Experience", "exp", cvParts.additionalExperience);
+    case "honorsAwards":
+      return renderBlocks("Honors & Awards", "honor", cvParts.honorsAwards);
+    case "patents":
+      return renderBlocks("Patents", "patent", cvParts.patents);
+    case "publications":
+      return renderBlocks("Publications", "pub", cvParts.publications);
+    case "customSections":
+      return renderCustomSections(cvParts.customSections);
+    default:
+      return "";
+  }
+}
+
+function renderContact(contact: CvPartsForRender["contact"]) {
+  if (!contact) {
+    return "";
+  }
+
+  return [
+    '<section class="contact-block">',
+    contact.name ? `<h1 class="contact-name">${escapeHtml(contact.name)}</h1>` : "",
+    contact.email ? `<p class="contact-item">${escapeHtml(contact.email)}</p>` : "",
+    contact.phone ? `<p class="contact-item">${escapeHtml(contact.phone)}</p>` : "",
+    ...(contact.links ?? []).map((link) =>
+      link.url
+        ? `<p class="contact-item"><a href="${escapeAttribute(link.url)}">${escapeHtml(
+            link.label ?? link.url,
+          )}</a></p>`
+        : "",
+    ),
+    !contact.name && contact.rawText
+      ? `<p class="contact-item">${escapeHtml(stripMarkdown(contact.rawText))}</p>`
+      : "",
+    "</section>",
+  ].join("");
+}
+
+function renderSkills(skills: CvPartsForRender["technicalSkills"]) {
+  if (!skills?.groups?.length) {
+    return skills?.rawText
+      ? `<section class="skills-block"><div class="section-heading">Skills</div><p>${escapeHtml(
+          stripMarkdown(skills.rawText),
+        )}</p></section>`
+      : "";
+  }
+
+  return [
+    '<section class="skills-block">',
+    '<div class="section-heading">Skills</div>',
+    ...skills.groups.map((group) =>
+      [
+        '<div class="skill-group">',
+        group.label ? `<div class="skill-label">${escapeHtml(group.label)}</div>` : "",
+        '<div class="skill-items">',
+        ...(group.items ?? []).map(
+          (item) => `<span class="skill-pill">${escapeHtml(item)}</span>`,
+        ),
+        "</div>",
+        "</div>",
+      ].join(""),
+    ),
+    "</section>",
+  ].join("");
+}
+
+function renderExperience(blocks: CvBlock[] | undefined) {
+  if (!blocks?.length) {
+    return "";
+  }
+
+  return [
+    '<section class="experience-section">',
+    '<div class="section-heading">Experience</div>',
+    ...blocks.map((block) =>
+      [
+        '<article class="exp-entry">',
+        '<div class="exp-header">',
+        "<div>",
+        block.role ? `<span class="exp-role">${escapeHtml(block.role)}</span>` : "",
+        block.organization
+          ? `<span class="exp-org">${escapeHtml(block.organization)}</span>`
+          : "",
+        "</div>",
+        block.dates ? `<span class="exp-dates">${escapeHtml(block.dates)}</span>` : "",
+        "</div>",
+        renderItems(block.items),
+        !block.items?.length && block.rawText
+          ? `<p>${escapeHtml(stripMarkdown(block.rawText))}</p>`
+          : "",
+        "</article>",
+      ].join(""),
+    ),
+    "</section>",
+  ].join("");
+}
+
+function renderBlocks(label: string, classPrefix: string, blocks: CvBlock[] | undefined) {
+  if (!blocks?.length) {
+    return "";
+  }
+
+  return [
+    `<section class="${classPrefix}-section">`,
+    `<div class="section-heading">${escapeHtml(label)}</div>`,
+    ...blocks.map((block) =>
+      [
+        `<div class="${classPrefix}-entry">`,
+        renderBlockTitle(classPrefix, block),
+        block.dates
+          ? `<span class="${classPrefix}-dates">${escapeHtml(block.dates)}</span>`
+          : "",
+        renderItems(block.items),
+        !block.items?.length && block.rawText
+          ? `<p>${escapeHtml(stripMarkdown(block.rawText))}</p>`
+          : "",
+        "</div>",
+      ].join(""),
+    ),
+    "</section>",
+  ].join("");
+}
+
+function renderBlockTitle(classPrefix: string, block: CvBlock) {
+  const title = block.title ?? block.role ?? block.organization;
+
+  return title
+    ? `<span class="${classPrefix}-title">${escapeHtml(title)}</span>`
+    : "";
+}
+
+function renderCustomSections(sections: CvPartsForRender["customSections"]) {
+  if (!sections?.length) {
+    return "";
+  }
+
+  return sections
+    .map((section) =>
+      [
+        '<section class="custom-section">',
+        section.heading
+          ? `<div class="section-heading">${escapeHtml(section.heading)}</div>`
+          : "",
+        section.rawText ? `<p>${escapeHtml(stripMarkdown(section.rawText))}</p>` : "",
+        "</section>",
+      ].join(""),
+    )
+    .join("");
+}
+
+function renderItems(items: string[] | undefined) {
+  if (!items?.length) {
+    return "";
+  }
+
+  return [
+    '<ul class="exp-items">',
+    ...items.map((item) => `<li>${escapeHtml(item)}</li>`),
+    "</ul>",
+  ].join("");
+}
+
+function stripMarkdown(value: string) {
+  return value
+    .replace(/\*\*/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^[-*]\s+/gm, "")
+    .trim();
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttribute(value: string) {
+  return escapeHtml(value).replaceAll("`", "&#096;");
+}
+
 function detectMarkdown(value: string) {
   return /(^|\n)\s{0,3}(#{1,6}\s|\* |- |\d+\. |\[.+\]\(.+\)|```)/.test(value);
+}
+
+function hasEnoughJobText(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean).length >= 12;
 }
 
 function buildTemplatePreviewSrcDoc(result: TemplateDesignResult) {

@@ -34,7 +34,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -250,6 +251,23 @@ button {
   box-shadow: 0 0 0 3px rgba(37, 95, 133, 0.14);
 }
 
+.text-input {
+  background: #fff;
+  border: 1px solid #cfc8bb;
+  border-radius: 8px;
+  color: var(--text);
+  min-height: 42px;
+  min-width: 0;
+  outline: none;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.text-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 95, 133, 0.14);
+}
+
 .cv-textarea {
   min-height: 360px;
 }
@@ -412,6 +430,99 @@ button {
   width: 100%;
 }
 
+.personalization-workspace {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(340px, 0.88fr) minmax(480px, 1.12fr);
+}
+
+.inline-control-row,
+.save-as-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.load-saved-row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  margin-bottom: 12px;
+}
+
+.job-markdown-textarea {
+  min-height: 360px;
+}
+
+.compact-textarea {
+  min-height: 112px;
+}
+
+.personalization-output-textarea {
+  min-height: 620px;
+}
+
+.personalization-summary {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.role-summary {
+  background: var(--primary-soft);
+  border: 1px solid #c8dde8;
+  border-radius: 8px;
+  color: var(--primary-strong);
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
+  padding: 12px;
+}
+
+.decision-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.decision-pill {
+  align-items: center;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.decision-pill strong,
+.decision-pill span {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.decision-pill span {
+  border-radius: 999px;
+  color: #fff;
+  font-weight: 800;
+  padding: 3px 7px;
+}
+
+.decision-changed span {
+  background: var(--primary);
+}
+
+.decision-unchanged span {
+  background: var(--success);
+}
+
+.decision-ignored span {
+  background: var(--muted);
+}
+
 .actions {
   align-items: center;
   display: flex;
@@ -540,6 +651,10 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .personalization-workspace {
+    grid-template-columns: 1fr;
+  }
+
   .resume-preview-placeholder {
     grid-template-columns: 1fr;
   }
@@ -576,5 +691,11 @@ button {
 
   .button {
     width: 100%;
+  }
+
+  .inline-control-row,
+  .save-as-row,
+  .load-saved-row {
+    grid-template-columns: 1fr;
   }
 }
