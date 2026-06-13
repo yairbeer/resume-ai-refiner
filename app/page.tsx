@@ -56,14 +56,6 @@ type TemplateDesignResult = {
   cacheLatestPath: string;
 };
 
-type JobPostingResult = {
-  url: string;
-  fetchedAt: string;
-  markdown: string;
-  title?: string;
-  sourceContentType?: string;
-};
-
 type PersonalizationBundle = {
   version: number;
   saveName: string;
@@ -153,7 +145,6 @@ export default function Home() {
   const [templateInstructions, setTemplateInstructions] = useState("");
   const [jobUrl, setJobUrl] = useState("");
   const [jobMarkdown, setJobMarkdown] = useState("");
-  const [jobFetchedAt, setJobFetchedAt] = useState<string | null>(null);
   const [fitInstructions, setFitInstructions] = useState("");
   const [styleInstructions, setStyleInstructions] = useState("");
   const [personalizationJson, setPersonalizationJson] = useState("");
@@ -167,8 +158,6 @@ export default function Home() {
   const [cvPartsResult, setCvPartsResult] = useState<CvPartsResult | null>(null);
   const [templateDesignResult, setTemplateDesignResult] =
     useState<TemplateDesignResult | null>(null);
-  const [jobPostingResult, setJobPostingResult] =
-    useState<JobPostingResult | null>(null);
   const [personalizeResult, setPersonalizeResult] =
     useState<PersonalizeResult | null>(null);
   const [status, setStatus] = useState("");
@@ -179,7 +168,6 @@ export default function Home() {
   const [isSplittingCv, setIsSplittingCv] = useState(false);
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
-  const [isFetchingJob, setIsFetchingJob] = useState(false);
   const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [isSavingPersonalization, setIsSavingPersonalization] = useState(false);
   const [isLoadingPersonalizationList, setIsLoadingPersonalizationList] =
@@ -188,7 +176,6 @@ export default function Home() {
 
   const canRefine = cvText.trim().length > 0 && instructions.trim().length > 0;
   const canGenerateTemplate = templateInstructions.trim().length > 0;
-  const canFetchJob = jobUrl.trim().length > 0;
   const canPersonalize = hasEnoughJobText(jobMarkdown);
   const canSavePersonalization =
     personalizationJson.trim().length > 0 && saveName.trim().length > 0;
@@ -351,46 +338,6 @@ export default function Home() {
     }
   }
 
-  async function fetchJobPosting() {
-    if (!canFetchJob) {
-      setStatus("Add a job URL before fetching.");
-      setStatusKind("error");
-      return;
-    }
-
-    setIsFetchingJob(true);
-    setStatus("Fetching job posting...");
-    setStatusKind("idle");
-
-    try {
-      const response = await fetch("/api/job-posting", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: jobUrl }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "Job fetch failed.");
-      }
-
-      const jobPosting = data as JobPostingResult;
-
-      setJobPostingResult(jobPosting);
-      setJobMarkdown(jobPosting.markdown);
-      setJobFetchedAt(jobPosting.fetchedAt);
-      setPersonalizeResult(null);
-      setPersonalizationJson("");
-      setStatus("Job posting is ready to edit.");
-      setStatusKind("success");
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Job fetch failed.");
-      setStatusKind("error");
-    } finally {
-      setIsFetchingJob(false);
-    }
-  }
-
   async function personalizeCv() {
     if (!canPersonalize) {
       setStatus("Add or fetch job Markdown before personalizing.");
@@ -408,7 +355,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fitInstructions,
-          jobFetchedAt,
+          jobFetchedAt: null,
           jobMarkdown,
           jobUrl,
           styleInstructions,
@@ -557,7 +504,6 @@ export default function Home() {
       setSaveName(bundle.saveName || selectedPersonalizationFile.replace(/\.json$/, ""));
       setJobUrl(bundle.job?.url ?? "");
       setJobMarkdown(bundle.job?.markdown ?? "");
-      setJobFetchedAt(bundle.job?.fetchedAt ?? null);
       setFitInstructions(bundle.instructions?.fit ?? "");
       setStyleInstructions(bundle.instructions?.style ?? "");
       setStatus(`Loaded ${data.cacheRelativePath}.`);
@@ -611,7 +557,7 @@ export default function Home() {
         ...(bundle.job ?? {}),
         url: jobUrl.trim() || bundle.job?.url || null,
         markdown: jobMarkdown,
-        fetchedAt: jobFetchedAt ?? bundle.job?.fetchedAt ?? null,
+        fetchedAt: bundle.job?.fetchedAt ?? null,
       },
       instructions: {
         ...(bundle.instructions ?? {}),
@@ -1150,63 +1096,27 @@ export default function Home() {
                   <div>
                     <h2 className="panel-title">Personalization</h2>
                     <p className="panel-subtitle">
-                      Fetch a role, edit the Markdown, then target CV parts.
+                      Add optional context, then target CV parts to a pasted job.
                     </p>
                   </div>
                 </div>
 
                 <div className="field-group">
                   <label className="field-label" htmlFor="job-url">
-                    Job URL
+                    Job URL reference
                   </label>
-                  <div className="inline-control-row">
-                    <input
-                      className="text-input mono"
-                      id="job-url"
-                      onChange={(event) => setJobUrl(event.target.value)}
-                      placeholder="https://company.example/jobs/role"
-                      type="url"
-                      value={jobUrl}
-                    />
-                    <button
-                      className="button button-primary"
-                      disabled={!canFetchJob || isFetchingJob}
-                      onClick={fetchJobPosting}
-                      type="button"
-                    >
-                      {isFetchingJob ? "Fetching..." : "Fetch job"}
-                    </button>
-                  </div>
-                  {jobPostingResult ? (
-                    <p className="field-hint">
-                      {jobPostingResult.title
-                        ? `${jobPostingResult.title} -> `
-                        : ""}
-                      fetched {new Date(jobPostingResult.fetchedAt).toLocaleString()}
-                    </p>
-                  ) : (
-                    <p className="field-hint">
-                      You can also paste job Markdown directly below. Needs at
-                      least 12 words before personalization runs.
-                    </p>
-                  )}
-                </div>
-
-                <div className="field-group">
-                  <label className="field-label" htmlFor="job-markdown">
-                    Job Markdown
-                  </label>
-                  <textarea
-                    className="textarea job-markdown-textarea mono"
-                    id="job-markdown"
-                    onChange={(event) => {
-                      setJobMarkdown(event.target.value);
-                      setPersonalizeResult(null);
-                      setPersonalizationJson("");
-                    }}
-                    placeholder="Fetched or pasted job description Markdown."
-                    value={jobMarkdown}
+                  <input
+                    className="text-input mono"
+                    id="job-url"
+                    onChange={(event) => setJobUrl(event.target.value)}
+                    placeholder="Optional URL for traceability"
+                    type="url"
+                    value={jobUrl}
                   />
+                  <p className="field-hint">
+                    This is saved as metadata only. Paste the job text in the
+                    output panel.
+                  </p>
                 </div>
 
                 <div className="field-group">
@@ -1250,7 +1160,7 @@ export default function Home() {
                         ? "status-error"
                         : statusKind === "success"
                           ? "status-success"
-                          : ""
+                      : ""
                     }`}
                     role="status"
                   >
@@ -1264,9 +1174,30 @@ export default function Home() {
                   <div>
                     <h2 className="panel-title">Output</h2>
                     <p className="panel-subtitle">
-                      Edit the bundle JSON before saving if needed.
+                      Paste the job description here, then edit the generated
+                      bundle if needed.
                     </p>
                   </div>
+                </div>
+
+                <div className="field-group">
+                  <label className="field-label" htmlFor="job-markdown">
+                    Job description
+                  </label>
+                  <textarea
+                    className="textarea job-markdown-textarea"
+                    id="job-markdown"
+                    onChange={(event) => {
+                      setJobMarkdown(event.target.value);
+                      setPersonalizeResult(null);
+                      setPersonalizationJson("");
+                    }}
+                    placeholder="Paste the job description here."
+                    value={jobMarkdown}
+                  />
+                  <p className="field-hint">
+                    Needs at least 12 words before personalization runs.
+                  </p>
                 </div>
 
                 {personalizeResult ? (
