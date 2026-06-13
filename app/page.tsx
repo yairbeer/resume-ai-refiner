@@ -1120,6 +1120,26 @@ export default function Home() {
                 </div>
 
                 <div className="field-group">
+                  <label className="field-label" htmlFor="job-markdown">
+                    Job description
+                  </label>
+                  <textarea
+                    className="textarea job-markdown-textarea"
+                    id="job-markdown"
+                    onChange={(event) => {
+                      setJobMarkdown(event.target.value);
+                      setPersonalizeResult(null);
+                      setPersonalizationJson("");
+                    }}
+                    placeholder="Paste the job description here."
+                    value={jobMarkdown}
+                  />
+                  <p className="field-hint">
+                    Needs at least 12 words before personalization runs.
+                  </p>
+                </div>
+
+                <div className="field-group">
                   <label className="field-label" htmlFor="fit-instructions">
                     Fit instructions
                   </label>
@@ -1174,30 +1194,9 @@ export default function Home() {
                   <div>
                     <h2 className="panel-title">Output</h2>
                     <p className="panel-subtitle">
-                      Paste the job description here, then edit the generated
-                      bundle if needed.
+                      Load saved bundles, edit generated JSON, or create HTML.
                     </p>
                   </div>
-                </div>
-
-                <div className="field-group">
-                  <label className="field-label" htmlFor="job-markdown">
-                    Job description
-                  </label>
-                  <textarea
-                    className="textarea job-markdown-textarea"
-                    id="job-markdown"
-                    onChange={(event) => {
-                      setJobMarkdown(event.target.value);
-                      setPersonalizeResult(null);
-                      setPersonalizationJson("");
-                    }}
-                    placeholder="Paste the job description here."
-                    value={jobMarkdown}
-                  />
-                  <p className="field-hint">
-                    Needs at least 12 words before personalization runs.
-                  </p>
                 </div>
 
                 {personalizeResult ? (
