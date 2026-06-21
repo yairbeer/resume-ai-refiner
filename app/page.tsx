@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useMemo, useState } from "react";
+import { buildPagedCvHtml, hasPageBreaks, PAGE_RENDERER_CSS } from "@/lib/cv-pages";
 
 type CvFormat = "markdown" | "text";
 type PipelineStep =
@@ -102,6 +103,7 @@ type CvBlock = {
   dates?: string;
   items?: string[];
   rawText?: string;
+  pageBreakBefore?: boolean;
 };
 
 type CvPartsForRender = {
@@ -112,9 +114,9 @@ type CvPartsForRender = {
     links?: Array<{ label?: string; url?: string }>;
     rawText?: string;
   };
-  profile?: { rawText?: string };
+  profile?: { rawText?: string; pageBreakBefore?: boolean };
   technicalSkills?: {
-    groups?: Array<{ label?: string; items?: string[]; rawText?: string }>;
+    groups?: Array<{ label?: string; items?: string[]; rawText?: string; pageBreakBefore?: boolean }>;
     rawText?: string;
   };
   professionalExperience?: CvBlock[];
@@ -123,7 +125,7 @@ type CvPartsForRender = {
   patents?: CvBlock[];
   publications?: CvBlock[];
   education?: CvBlock[];
-  customSections?: Array<{ heading?: string; rawText?: string }>;
+  customSections?: Array<{ heading?: string; rawText?: string; pageBreakBefore?: boolean }>;
 };
 
 type TemplateStyleForRender = {
@@ -1341,8 +1343,10 @@ function buildPersonalizationHtml(bundle: PersonalizationBundle) {
     [
       "body { margin: 0; background: #f3f0e9; font-family: Arial, sans-serif; }",
       "@media screen { body { padding: 24px; } }",
+      "a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }",
     ].join("\n"),
     style.css ?? "",
+    PAGE_RENDERER_CSS,
     "</style>",
     "</head>",
     "<body>",
@@ -1363,6 +1367,10 @@ function asCvParts(value: unknown): CvPartsForRender {
 }
 
 function buildCvHtml(template: TemplateStyleForRender, cvParts: CvPartsForRender) {
+  if (hasPageBreaks(cvParts)) {
+    return buildPagedCvHtml(template, cvParts);
+  }
+
   const leftRailSections = template.layout?.leftRailSections ?? [
     "contact",
     "technicalSkills",
@@ -1403,7 +1411,7 @@ function renderCvSection(section: string, cvParts: CvPartsForRender) {
         ? [
             '<section class="profile-section">',
             '<div class="section-heading">Profile</div>',
-            `<p class="profile-text">${escapeHtml(stripMarkdown(cvParts.profile.rawText))}</p>`,
+            `<p class="profile-text">${renderInlineMarkdown(cvParts.profile.rawText)}</p>`,
             "</section>",
           ].join("")
         : "";
@@ -1442,7 +1450,7 @@ function renderContact(contact: CvPartsForRender["contact"]) {
         : "",
     ),
     !contact.name && contact.rawText
-      ? `<p class="contact-item">${escapeHtml(stripMarkdown(contact.rawText))}</p>`
+      ? `<p class="contact-item">${renderInlineMarkdown(stripMarkdown(contact.rawText))}</p>`
       : "",
     "</section>",
   ].join("");
@@ -1498,7 +1506,7 @@ function renderExperience(blocks: CvBlock[] | undefined) {
         "</div>",
         renderItems(block.items),
         !block.items?.length && block.rawText
-          ? `<p>${escapeHtml(stripMarkdown(block.rawText))}</p>`
+          ? `<p>${renderInlineMarkdown(stripMarkdown(block.rawText))}</p>`
           : "",
         "</article>",
       ].join(""),
@@ -1553,7 +1561,7 @@ function renderCustomSections(sections: CvPartsForRender["customSections"]) {
         section.heading
           ? `<div class="section-heading">${escapeHtml(section.heading)}</div>`
           : "",
-        section.rawText ? `<p>${escapeHtml(stripMarkdown(section.rawText))}</p>` : "",
+        section.rawText ? `<p>${renderInlineMarkdown(stripMarkdown(section.rawText))}</p>` : "",
         "</section>",
       ].join(""),
     )
@@ -1567,7 +1575,7 @@ function renderItems(items: string[] | undefined) {
 
   return [
     '<ul class="exp-items">',
-    ...items.map((item) => `<li>${escapeHtml(item)}</li>`),
+    ...items.map((item) => `<li>${renderInlineMarkdown(item)}</li>`),
     "</ul>",
   ].join("");
 }
@@ -1578,6 +1586,25 @@ function stripMarkdown(value: string) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/^[-*]\s+/gm, "")
     .trim();
+}
+
+function renderInlineMarkdown(value: string) {
+  const cleaned = value.replace(/\*\*/g, "");
+  const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\b(https?:\/\/[^\s<]+)/g;
+  let output = "";
+  let cursor = 0;
+
+  for (const match of cleaned.matchAll(linkPattern)) {
+    const index = match.index ?? 0;
+    const label = match[1] ?? match[3];
+    const url = match[2] ?? match[3];
+
+    output += escapeHtml(cleaned.slice(cursor, index));
+    output += `<a href="${escapeAttribute(url)}" rel="noopener noreferrer" target="_blank">${escapeHtml(label)}</a>`;
+    cursor = index + match[0].length;
+  }
+
+  return output + escapeHtml(cleaned.slice(cursor));
 }
 
 function escapeHtml(value: string) {

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+import { buildPagedCvHtml, hasPageBreaks, PAGE_RENDERER_CSS } from "@/lib/cv-pages";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,9 @@ type CvParts = {
     links?: Array<{ label?: string; url?: string }>;
     rawText?: string;
   };
-  profile?: { rawText?: string };
+  profile?: { rawText?: string; pageBreakBefore?: boolean };
   technicalSkills?: {
-    groups?: Array<{ label?: string; items?: string[]; rawText?: string }>;
+    groups?: Array<{ label?: string; items?: string[]; rawText?: string; pageBreakBefore?: boolean }>;
     rawText?: string;
   };
   professionalExperience?: CvBlock[];
@@ -21,7 +22,7 @@ type CvParts = {
   patents?: CvBlock[];
   publications?: CvBlock[];
   education?: CvBlock[];
-  customSections?: Array<{ heading?: string; rawText?: string }>;
+  customSections?: Array<{ heading?: string; rawText?: string; pageBreakBefore?: boolean }>;
 };
 
 type CvBlock = {
@@ -32,6 +33,7 @@ type CvBlock = {
   dates?: string;
   items?: string[];
   rawText?: string;
+  pageBreakBefore?: boolean;
 };
 
 type TemplateDesign = {
@@ -69,7 +71,7 @@ export default async function CvPreviewPage() {
   return (
     <main style={previewPageStyle}>
       <iframe
-        sandbox=""
+        sandbox="allow-popups"
         srcDoc={buildCvPreviewSrcDoc(template, cvParts)}
         style={previewFrameStyle}
         title="Rendered latest CV preview"
@@ -90,8 +92,10 @@ function buildCvPreviewSrcDoc(template: TemplateDesign, cvParts: CvParts) {
     [
       "body { margin: 0; background: #f3f0e9; font-family: Arial, sans-serif; }",
       "@media screen { body { padding: 24px; } }",
+      "a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }",
     ].join("\n"),
     template.css ?? "",
+    PAGE_RENDERER_CSS,
     "</style>",
     "</head>",
     "<body>",
@@ -102,6 +106,10 @@ function buildCvPreviewSrcDoc(template: TemplateDesign, cvParts: CvParts) {
 }
 
 function buildCvHtml(template: TemplateDesign, cvParts: CvParts) {
+  if (hasPageBreaks(cvParts)) {
+    return buildPagedCvHtml(template, cvParts);
+  }
+
   const leftRailSections = template.layout?.leftRailSections ?? [
     "contact",
     "technicalSkills",
@@ -141,7 +149,7 @@ function renderCvSection(section: string, cvParts: CvParts) {
         ? [
             '<section class="profile-section">',
             '<div class="section-heading">Profile</div>',
-            `<p class="profile-text">${escapeHtml(cvParts.profile.rawText)}</p>`,
+            `<p class="profile-text">${renderInlineMarkdown(cvParts.profile.rawText)}</p>`,
             "</section>",
           ].join("")
         : "";
@@ -261,7 +269,7 @@ function renderBlocks(label: string, classPrefix: string, blocks: CvBlock[] | un
           : "",
         renderItems(block.items),
         !block.items?.length && block.rawText
-          ? `<p>${escapeHtml(stripMarkdown(block.rawText))}</p>`
+          ? `<p>${renderInlineMarkdown(stripMarkdown(block.rawText))}</p>`
           : "",
         "</div>",
       ].join(""),
@@ -292,7 +300,7 @@ function renderCustomSections(sections: CvParts["customSections"]) {
         section.heading
           ? `<div class="section-heading">${escapeHtml(section.heading)}</div>`
           : "",
-        section.rawText ? `<p>${escapeHtml(stripMarkdown(section.rawText))}</p>` : "",
+        section.rawText ? `<p>${renderInlineMarkdown(stripMarkdown(section.rawText))}</p>` : "",
         "</section>",
       ].join(""),
     )
@@ -306,7 +314,7 @@ function renderItems(items: string[] | undefined) {
 
   return [
     '<ul class="exp-items">',
-    ...items.map((item) => `<li>${escapeHtml(item)}</li>`),
+    ...items.map((item) => `<li>${renderInlineMarkdown(item)}</li>`),
     "</ul>",
   ].join("");
 }
@@ -372,6 +380,25 @@ function stripMarkdown(value: string) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/^[-*]\s+/gm, "")
     .trim();
+}
+
+function renderInlineMarkdown(value: string) {
+  const cleaned = value.replace(/\*\*/g, "");
+  const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\b(https?:\/\/[^\s<]+)/g;
+  let output = "";
+  let cursor = 0;
+
+  for (const match of cleaned.matchAll(linkPattern)) {
+    const index = match.index ?? 0;
+    const label = match[1] ?? match[3];
+    const url = match[2] ?? match[3];
+
+    output += escapeHtml(cleaned.slice(cursor, index));
+    output += `<a href="${escapeAttribute(url)}" rel="noopener noreferrer" target="_blank">${escapeHtml(label)}</a>`;
+    cursor = index + match[0].length;
+  }
+
+  return output + escapeHtml(cleaned.slice(cursor));
 }
 
 function escapeHtml(value: string) {

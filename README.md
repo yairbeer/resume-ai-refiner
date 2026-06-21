@@ -43,6 +43,7 @@ The app uses a left-side pipeline with one active workspace at a time.
 - Saves structured CV parts under `.cache/cv-parts/versions/`.
 - `.cache/cv-parts/latest.json` points to the newest structured CV parts.
 - The parts object preserves original section text and keeps optional sections like patents, publications, honors, and additional experience when present.
+- A standalone `<new_page>` line in the refined CV creates `pageBreakBefore: true` on the next structured component. It can be placed between jobs, skill groups, education entries, patents, publications, or custom sections.
 
 ### 03 Template Designer
 
@@ -59,6 +60,7 @@ The app uses a left-side pipeline with one active workspace at a time.
 - Reads `.cache/templates/latest.json`.
 - Renders the latest real CV parts through the latest saved template.
 - The preview is available in the app and at `/cv-preview`.
+- When the CV parts contain `pageBreakBefore` markers, the preview renders separate A4 pages in the browser and preserves the same page boundaries when printed or exported to PDF.
 
 ### 05 Personalization
 
@@ -81,6 +83,23 @@ The app uses a left-side pipeline with one active workspace at a time.
 - This step intentionally does not create `.cache/personalizations/latest.json`.
 - Saved personalization bundles can be refreshed, selected, and loaded.
 - `Create HTML` downloads a standalone HTML file rendered from the personalized CV parts and saved style data.
+- Page-break metadata is preserved during personalization unless the user explicitly asks to change it.
+
+## Manual Page Breaks
+
+Add `<new_page>` on its own line in the Markdown or plain-text CV before running `CV to Components`.
+
+```md
+**Example Company: Engineering Manager**
+...role content...
+
+<new_page>
+
+**Example Organization: Senior Data Scientist**
+...role content...
+```
+
+The marker is not shown in the rendered CV. It becomes a page break before the next component, so the page begins with `Example Organization` in this example.
 
 ## Cache Contract
 

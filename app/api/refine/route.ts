@@ -138,6 +138,7 @@ function buildPrompt(cvText: string, instructions: string, format: "markdown" | 
     "- The refinedCv value must be the full updated CV, not a patch.",
     "- Preserve Markdown syntax if the input is Markdown.",
     "- Preserve plain text structure if the input is plain text.",
+    "- Preserve every standalone <new_page> marker exactly. Do not move it into prose, remove it, or create new markers.",
     "- Do not add facts, employers, dates, skills, metrics, degrees, or titles unless the user provided them.",
     "- If the instructions imply missing details, use concise placeholders like [Add start date].",
     "- Keep the tone professional and truthful.",

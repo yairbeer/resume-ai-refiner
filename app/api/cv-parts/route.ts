@@ -18,6 +18,7 @@ type CvPartBlock = {
   dates?: string;
   items?: string[];
   rawText: string;
+  pageBreakBefore?: boolean;
 };
 
 type CvParts = {
@@ -27,12 +28,14 @@ type CvParts = {
     email?: string;
     links?: Array<{ label: string; url: string }>;
     rawText: string;
+    pageBreakBefore?: boolean;
   };
   profile: {
     rawText: string;
+    pageBreakBefore?: boolean;
   };
   technicalSkills: {
-    groups: Array<{ label: string; items: string[]; rawText: string }>;
+    groups: Array<{ label: string; items: string[]; rawText: string; pageBreakBefore?: boolean }>;
     rawText: string;
   };
   professionalExperience: CvPartBlock[];
@@ -41,7 +44,7 @@ type CvParts = {
   patents?: CvPartBlock[];
   publications?: CvPartBlock[];
   education: CvPartBlock[];
-  customSections?: Array<{ heading: string; rawText: string }>;
+  customSections?: Array<{ heading: string; rawText: string; pageBreakBefore?: boolean }>;
 };
 
 type CvPartsPayload = {
@@ -176,6 +179,8 @@ function buildPrompt(cvText: string, sourceRefinement: RefinementLatest) {
     "- Omit projects and certifications if they are not present.",
     "- Do not invent employers, dates, degrees, links, metrics, patents, publications, skills, or missing placeholders.",
     "- Keep unresolved placeholders only if they already exist in the source CV.",
+    "- Treat a standalone <new_page> marker as a page break before the next structured component.",
+    "- Remove <new_page> from rawText and items, then set pageBreakBefore: true on that next job, skill group, education entry, patent, publication, or custom section.",
     "",
     "Refined CV:",
     cvText,
@@ -420,6 +425,7 @@ const CV_PARTS_TOOL_SCHEMA = {
               },
             },
             rawText: { type: "string" },
+            pageBreakBefore: { type: "boolean" },
           },
           required: ["rawText"],
         },
@@ -428,6 +434,7 @@ const CV_PARTS_TOOL_SCHEMA = {
           additionalProperties: false,
           properties: {
             rawText: { type: "string" },
+            pageBreakBefore: { type: "boolean" },
           },
           required: ["rawText"],
         },
@@ -444,6 +451,7 @@ const CV_PARTS_TOOL_SCHEMA = {
                   label: { type: "string" },
                   items: { type: "array", items: { type: "string" } },
                   rawText: { type: "string" },
+                  pageBreakBefore: { type: "boolean" },
                 },
                 required: ["label", "items", "rawText"],
               },
@@ -484,6 +492,7 @@ const CV_PARTS_TOOL_SCHEMA = {
             properties: {
               heading: { type: "string" },
               rawText: { type: "string" },
+              pageBreakBefore: { type: "boolean" },
             },
             required: ["heading", "rawText"],
           },
@@ -515,6 +524,7 @@ const CV_PARTS_TOOL_SCHEMA = {
         dates: { type: "string" },
         items: { type: "array", items: { type: "string" } },
         rawText: { type: "string" },
+        pageBreakBefore: { type: "boolean" },
       },
       required: ["rawText"],
     },

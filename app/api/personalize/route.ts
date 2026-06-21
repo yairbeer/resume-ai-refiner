@@ -18,6 +18,7 @@ type CvPartBlock = {
   dates?: string;
   items?: string[];
   rawText: string;
+  pageBreakBefore?: boolean;
 };
 
 type CvParts = {
@@ -27,12 +28,14 @@ type CvParts = {
     email?: string;
     links?: Array<{ label: string; url: string }>;
     rawText: string;
+    pageBreakBefore?: boolean;
   };
   profile: {
     rawText: string;
+    pageBreakBefore?: boolean;
   };
   technicalSkills: {
-    groups: Array<{ label: string; items: string[]; rawText: string }>;
+    groups: Array<{ label: string; items: string[]; rawText: string; pageBreakBefore?: boolean }>;
     rawText: string;
   };
   professionalExperience: CvPartBlock[];
@@ -41,7 +44,7 @@ type CvParts = {
   patents?: CvPartBlock[];
   publications?: CvPartBlock[];
   education: CvPartBlock[];
-  customSections?: Array<{ heading: string; rawText: string }>;
+  customSections?: Array<{ heading: string; rawText: string; pageBreakBefore?: boolean }>;
 };
 
 type TemplateDesign = {
@@ -271,6 +274,7 @@ function buildPrompt(input: {
     "Rules:",
     "- personalizedCvParts must keep the same section-level schema as current CV parts.",
     "- Preserve rawText fields with truthful job-targeted wording where changed.",
+    "- Preserve pageBreakBefore markers from the source CV parts. Do not add or remove page breaks unless the user explicitly asks.",
     "- Match the prior CV writing style: professional, concise, direct, and not AI-sounding.",
     "- Do not use em dashes or icons anywhere in generated CV text.",
     "- For every meaningful section, include a partDecisions entry with changed, unchanged, or ignored.",
@@ -419,6 +423,7 @@ const CV_PART_BLOCK_SCHEMA = {
     dates: { type: "string" },
     items: { type: "array", items: { type: "string" } },
     rawText: { type: "string" },
+    pageBreakBefore: { type: "boolean" },
   },
   required: ["rawText"],
 } as const;
@@ -447,6 +452,7 @@ const CV_PARTS_SCHEMA = {
           },
         },
         rawText: { type: "string" },
+        pageBreakBefore: { type: "boolean" },
       },
       required: ["rawText"],
     },
@@ -471,6 +477,7 @@ const CV_PARTS_SCHEMA = {
               label: { type: "string" },
               items: { type: "array", items: { type: "string" } },
               rawText: { type: "string" },
+              pageBreakBefore: { type: "boolean" },
             },
             required: ["label", "items", "rawText"],
           },
@@ -511,6 +518,7 @@ const CV_PARTS_SCHEMA = {
         properties: {
           heading: { type: "string" },
           rawText: { type: "string" },
+          pageBreakBefore: { type: "boolean" },
         },
         required: ["heading", "rawText"],
       },
